@@ -139,8 +139,13 @@ class SettingsContainer(Container):
             "CANVAS_SIZE": self._canvas_size_tuple,
         }
 
-        # the below updates all the settings of the singleton after something changes
+        # Only update PREFERRED_READER if readers are available
         for setting_name, widget in widget_to_setting.items():
+            if (
+                setting_name == "PREFERRED_READER"
+                and not self._readers_available
+            ):
+                continue
             setattr(self.settings, setting_name, widget.value)
 
         self.settings.save_settings()
