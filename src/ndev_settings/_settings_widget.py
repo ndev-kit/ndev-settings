@@ -17,16 +17,19 @@ class SettingsContainer(Container):
         super().__init__(labels=False)
         self.settings = get_settings()
         self._available_readers = [
-            reader.name
-            for reader in entry_points(
-                group="bioio.readers"
-            )  # use entry_points(group='bioio.readers') for py >= 3.10
+            reader.name for reader in entry_points(group="bioio.readers")
         ]
-        self._preferred_reader = (
-            self.settings.PREFERRED_READER
-            if self.settings.PREFERRED_READER in self._available_readers
-            else "bioio-ome-tiff"
-        )
+        if not self._available_readers:
+            self._available_readers = ["No readers found"]
+            self._preferred_reader = "No readers found"
+            self._readers_available = False
+        else:
+            self._preferred_reader = (
+                self.settings.PREFERRED_READER
+                if self.settings.PREFERRED_READER in self._available_readers
+                else self._available_readers[0]
+            )
+            self._readers_available = True
 
         self._init_widgets()
         self._connect_events()
@@ -39,6 +42,7 @@ class SettingsContainer(Container):
             tooltip="Preferred reader to use when opening images. \n"
             "If the reader is not available, it will attempt to fallback \n"
             "to the next available working reader.",
+            enabled=self._readers_available,
         )
         self._scene_handling_combo = ComboBox(
             label="Multi-Scene Handling",
