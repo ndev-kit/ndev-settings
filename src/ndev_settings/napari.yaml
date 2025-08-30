@@ -6,3 +6,9 @@ visibility: public
 # categories: []
 contributions:
   commands:
+    - id: ndev-settings.make_settings_container
+      python_name: ndev_settings._settings_widget:SettingsContainer
+      title: Make Settings Container
+  widgets:
+    - command: ndev-settings.make_settings_container
+      display_name: ndev Settings
