@@ -6,3 +6,9 @@ visibility: public
 # categories: []
 contributions:
   commands:
+    - id: napari-ndev.make_settings_container
+      python_name: napari_ndev.widgets._settings_container:SettingsContainer
+      title: Make Settings Container
+  widgets:
+    - command: napari-ndev.make_settings_container
+      display_name: Settings Widget

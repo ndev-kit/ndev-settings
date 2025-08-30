@@ -1,5 +1,6 @@
 import yaml
-from napari_ndev._settings import Settings, get_settings
+
+from ndev_settings._settings import Settings, get_settings
 
 
 def test_settings(tmp_path):
