@@ -15,11 +15,11 @@ class Settings:
 
     def register_setting(self, name: str, default_value, description: str = "", **metadata):
         """Register a new setting (for use by other libraries)."""
-        # Create the setting definition in the rich format
+        # Create the setting definition in the rich format with value first
         setting_definition = {
             "value": default_value,
+            "default": default_value,
             "description": description,
-            "default": default_value,  # Store default value in metadata
             **metadata
         }
 
@@ -35,35 +35,21 @@ class Settings:
             current_settings[name] = setting_definition
         else:
             # Setting exists, preserve the current value but update metadata
-            if isinstance(current_settings[name], dict):
-                # Preserve the existing value
-                existing_value = current_settings[name].get("value", default_value)
-                current_settings[name] = {
-                    **setting_definition,
-                    "value": existing_value
-                }
-            else:
-                # Legacy format - convert to rich format with existing value
-                current_settings[name] = {
-                    **setting_definition,
-                    "value": current_settings[name]
-                }
-
+            existing_value = current_settings[name].get("value", default_value)
+            current_settings[name] = {
+                **setting_definition,
+                "value": existing_value
+            }
+            
         # Set the attribute value (either from file or default)
-        if name in current_settings:
-            if isinstance(current_settings[name], dict) and "value" in current_settings[name]:
-                value = current_settings[name]["value"]
-                # Handle type conversion for tuples
-                if isinstance(default_value, tuple) and isinstance(value, list):
-                    value = tuple(value)
-                setattr(self, name, value)
-            else:
-                # Legacy format - use the value directly
-                setattr(self, name, current_settings[name])
+        if name in current_settings and "value" in current_settings[name]:
+            value = current_settings[name]["value"]
+            # Handle type conversion for tuples
+            if isinstance(default_value, tuple) and isinstance(value, list):
+                value = tuple(value)
+            setattr(self, name, value)
         else:
-            setattr(self, name, default_value)
-
-        # Save the updated settings file
+            setattr(self, name, default_value)        # Save the updated settings file
         if not self._loading:
             self._save_settings_file(current_settings)
 
@@ -117,7 +103,7 @@ class Settings:
         try:
             with open(self._settings_path) as file:
                 settings = yaml.safe_load(file) or {}
-                if name in settings and isinstance(settings[name], dict):
+                if name in settings:
                     # Return all metadata except 'value'
                     return {k: v for k, v in settings[name].items() if k != "value"}
                 return {}
@@ -129,15 +115,7 @@ class Settings:
         try:
             with open(self._settings_path) as file:
                 settings = yaml.safe_load(file) or {}
-                result = {}
-                for name, setting in settings.items():
-                    if isinstance(setting, dict) and "value" in setting:
-                        # Rich format
-                        result[name] = setting["value"]
-                    else:
-                        # Legacy format
-                        result[name] = setting
-                return result
+                return {name: setting["value"] for name, setting in settings.items() if "value" in setting}
         except FileNotFoundError:
             return {}
 
@@ -150,20 +128,13 @@ class Settings:
             # If file doesn't exist, it will be created when settings are first saved
             saved_settings = {}
 
-        # Load all settings from the file
+        # Load all settings from the file (rich format only)
         for name, setting_data in saved_settings.items():
-            if isinstance(setting_data, dict) and "value" in setting_data:
+            if "value" in setting_data:
                 value = setting_data["value"]
                 # Handle type conversion for tuples (YAML converts tuples to lists)
                 if isinstance(value, list) and name == "CANVAS_SIZE":
                     # Convert CANVAS_SIZE back to tuple for consistency
-                    value = tuple(value)
-                setattr(self, name, value)
-            else:
-                # Handle legacy format where settings are just values
-                value = setting_data
-                # Handle type conversion for tuples even in legacy format
-                if isinstance(value, list) and name == "CANVAS_SIZE":
                     value = tuple(value)
                 setattr(self, name, value)
 
@@ -186,26 +157,19 @@ class Settings:
         except FileNotFoundError:
             current_settings = {}
 
-        # Update values while preserving metadata
+        # Update values while preserving metadata (rich format only)
         for attr_name in dir(self):
             if not attr_name.startswith('_') and not callable(getattr(self, attr_name)):
                 value = getattr(self, attr_name)
 
                 if attr_name in current_settings:
-                    # Check if it's in rich format
-                    if isinstance(current_settings[attr_name], dict):
-                        # Update existing rich setting value
-                        current_settings[attr_name]["value"] = value
-                    else:
-                        # Legacy format, convert to rich format
-                        current_settings[attr_name] = {
-                            "value": value,
-                            "description": f"Setting {attr_name}"
-                        }
+                    # Update existing rich setting value
+                    current_settings[attr_name]["value"] = value
                 else:
-                    # Create new setting entry (minimal metadata)
+                    # Create new setting entry with value first
                     current_settings[attr_name] = {
                         "value": value,
+                        "default": value,
                         "description": f"Setting {attr_name}"
                     }
 
