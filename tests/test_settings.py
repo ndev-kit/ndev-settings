@@ -4,7 +4,6 @@ import tempfile
 import yaml
 
 from ndev_settings import register_setting
-from ndev_settings._default_settings import DEFAULT_SETTINGS
 from ndev_settings._settings import Settings, get_settings
 
 
@@ -46,30 +45,38 @@ def test_settings(tmp_path):
     with open(settings_file) as file:
         saved_settings = yaml.safe_load(file)
 
-    assert saved_settings["PREFERRED_READER"] == "new-reader"
-    assert saved_settings["SCENE_HANDLING"] == "new-scene"
-    assert not saved_settings["CLEAR_LAYERS_ON_NEW_SCENE"]
-    assert saved_settings["UNPACK_CHANNELS_AS_LAYERS"]
+    # With rich format, we need to check the 'value' key
+    assert saved_settings["PREFERRED_READER"]["value"] == "new-reader"
+    assert saved_settings["SCENE_HANDLING"]["value"] == "new-scene"
+    assert not saved_settings["CLEAR_LAYERS_ON_NEW_SCENE"]["value"]
+    assert saved_settings["UNPACK_CHANNELS_AS_LAYERS"]["value"]
     # Note: YAML will save tuple as list, but that's expected
-    assert saved_settings["CANVAS_SIZE"] == [256, 256]
+    assert saved_settings["CANVAS_SIZE"]["value"] == [256, 256]
 
 
 def test_default_settings_structure():
-    """Test that default settings are properly structured."""
-    assert isinstance(DEFAULT_SETTINGS, dict)
+    """Test that default settings are properly loaded from YAML."""
+    settings = get_settings()
 
     # Check that all expected settings are present
     expected_settings = {
         "PREFERRED_READER", "SCENE_HANDLING", "CLEAR_LAYERS_ON_NEW_SCENE",
         "UNPACK_CHANNELS_AS_LAYERS", "CANVAS_SCALE", "OVERRIDE_CANVAS_SIZE", "CANVAS_SIZE"
     }
-    assert set(DEFAULT_SETTINGS.keys()) == expected_settings
 
-    # Check that each setting has required structure
-    for _name, definition in DEFAULT_SETTINGS.items():
-        assert "default" in definition
-        assert "description" in definition
-        # Some settings might have additional metadata like 'choices', 'min', 'max'
+    # Get all loaded settings
+    loaded_settings = set()
+    for attr_name in dir(settings):
+        if not attr_name.startswith('_') and not callable(getattr(settings, attr_name)):
+            loaded_settings.add(attr_name)
+
+    # Check that expected settings are a subset of loaded settings
+    assert expected_settings.issubset(loaded_settings)
+
+    # Check that each setting has proper metadata in YAML
+    for setting_name in expected_settings:
+        info = settings.get_setting_info(setting_name)
+        assert "description" in info
 
 
 def test_settings_registration():
@@ -160,10 +167,18 @@ def test_register_setting_convenience_function():
     finally:
         # Clean up - remove the temporary setting from the singleton
         settings = get_settings()
-        if "TEMP_TEST_SETTING" in settings._default_settings:
-            del settings._default_settings["TEMP_TEST_SETTING"]
-            if hasattr(settings, "TEMP_TEST_SETTING"):
-                delattr(settings, "TEMP_TEST_SETTING")
+        # Since we're using YAML-based settings, we need to remove from YAML and object
+        if hasattr(settings, "TEMP_TEST_SETTING"):
+            delattr(settings, "TEMP_TEST_SETTING")
+        # Also remove from YAML file
+        try:
+            with open(settings._settings_path) as file:
+                current_settings = yaml.safe_load(file) or {}
+            if "TEMP_TEST_SETTING" in current_settings:
+                del current_settings["TEMP_TEST_SETTING"]
+                settings._save_settings_file(current_settings)
+        except FileNotFoundError:
+            pass
 
 
 def test_get_settings():
