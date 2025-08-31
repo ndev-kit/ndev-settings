@@ -139,13 +139,12 @@ class SettingsContainer(Container):
             "CANVAS_SIZE": self._canvas_size_tuple,
         }
 
-        # Only update PREFERRED_READER if readers are available
         for setting_name, widget in widget_to_setting.items():
+            # Only update PREFERRED_READER if readers are available
             if (
                 setting_name == "PREFERRED_READER"
                 and not self._readers_available
             ):
                 continue
+            # Note: settings are auto-saved on change
             setattr(self.settings, setting_name, widget.value)
-
-        self.settings.save_settings()
