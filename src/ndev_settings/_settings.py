@@ -45,7 +45,16 @@ class Settings:
 
         # Set all registered settings, using saved values or defaults
         for name, definition in self._registered_settings.items():
-            value = saved_settings.get(name, definition["default"])
+            saved_value = saved_settings.get(name, definition["default"])
+            default_value = definition["default"]
+
+            # Handle type conversion for values that YAML might have changed
+            # (e.g., tuples become lists when loaded from YAML)
+            if isinstance(default_value, tuple) and isinstance(saved_value, list):
+                value = tuple(saved_value)
+            else:
+                value = saved_value
+
             setattr(self, name, value)
 
     def __setattr__(self, name, value):

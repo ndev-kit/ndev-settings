@@ -68,10 +68,12 @@ class SettingsContainer(Container):
                 step=info.get("step", 1.0),
                 tooltip=description,
             )
-        elif isinstance(default_value, tuple):
+        elif isinstance(default_value, tuple | list):
+            # Convert list to tuple if needed for consistency
+            tuple_value = tuple(default_value) if isinstance(default_value, list) else default_value
             return TupleEdit(
                 label=name.replace("_", " ").title(),
-                value=default_value,
+                value=tuple_value,
                 tooltip=description,
             )
 
