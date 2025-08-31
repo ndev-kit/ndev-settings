@@ -8,12 +8,14 @@ class Settings:
 
     def __init__(self, settings_file: str):
         """Initialize the settings manager with a file path."""
-        self.settings_file = settings_file
+        self._settings_path = settings_file
+        self._loading = True  # Flag to prevent auto-save during initialization
         self.load_settings()
+        self._loading = False  # Enable auto-save after initialization
 
     def load_settings(self):
         """Load settings from the settings file."""
-        with open(self.settings_file) as file:
+        with open(self._settings_path) as file:
             settings = yaml.safe_load(file)
 
             self.PREFERRED_READER = settings.get(
@@ -34,6 +36,17 @@ class Settings:
             )
             self.CANVAS_SIZE = settings.get("CANVAS_SIZE", (1024, 1024))
 
+    def __setattr__(self, name, value):
+        """Override setattr to auto-save when settings are changed."""
+        super().__setattr__(name, value)
+
+        # Auto-save if we're changing a setting (not internal attributes) and not during loading
+        if (not name.startswith('_') and
+            name not in ('settings_file',) and
+            hasattr(self, '_loading') and
+            not self._loading):
+            self.save_settings()
+
     def save_settings(self):
         """Save the current settings to the settings file."""
         settings = {
@@ -46,7 +59,7 @@ class Settings:
             "CANVAS_SIZE": self.CANVAS_SIZE,
         }
 
-        with open(self.settings_file, "w") as file:
+        with open(self._settings_path, "w") as file:
             yaml.safe_dump(settings, file)
 
 
