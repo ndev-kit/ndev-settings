@@ -31,12 +31,10 @@ def test_widget_types_created_correctly():
     settings = container.settings
 
     # Test boolean settings create checkboxes
-    if hasattr(settings, "CLEAR_LAYERS_ON_NEW_SCENE"):
+    if hasattr(settings, "CLEAR_LAYERS_ON_NEW_SCENE") and isinstance(getattr(settings, "CLEAR_LAYERS_ON_NEW_SCENE", None), bool) and "CLEAR_LAYERS_ON_NEW_SCENE" in container._widgets:
         setting_info = settings.get_setting_info("CLEAR_LAYERS_ON_NEW_SCENE")
-        if isinstance(settings.CLEAR_LAYERS_ON_NEW_SCENE, bool):
-            if "CLEAR_LAYERS_ON_NEW_SCENE" in container._widgets:
-                widget = container._widgets["CLEAR_LAYERS_ON_NEW_SCENE"]
-                assert hasattr(widget, 'value')  # CheckBox has value attribute
+        widget = container._widgets["CLEAR_LAYERS_ON_NEW_SCENE"]
+        assert hasattr(widget, 'value')  # CheckBox has value attribute
 
     # Test that settings with choices create ComboBoxes
     if hasattr(settings, "SCENE_HANDLING"):
@@ -49,10 +47,15 @@ def test_widget_types_created_correctly():
     # Test that numeric settings create spinboxes
     if hasattr(settings, "CANVAS_SCALE"):
         setting_info = settings.get_setting_info("CANVAS_SCALE")
-        if isinstance(settings.CANVAS_SCALE, (int, float)) and not isinstance(settings.CANVAS_SCALE, bool):
-            if "CANVAS_SCALE" in container._widgets and "choices" not in setting_info:
-                widget = container._widgets["CANVAS_SCALE"]
-                assert hasattr(widget, 'min'), f"Widget for CANVAS_SCALE is {type(widget)}, expected FloatSpinBox"
+        if (
+            hasattr(settings, "CANVAS_SCALE")
+            and isinstance(settings.CANVAS_SCALE, int | float)
+            and not isinstance(settings.CANVAS_SCALE, bool)
+            and "CANVAS_SCALE" in container._widgets
+            and "choices" not in setting_info
+        ):
+            widget = container._widgets["CANVAS_SCALE"]
+            assert hasattr(widget, 'min'), f"Widget for CANVAS_SCALE is {type(widget)}, expected FloatSpinBox"
 
 
 def test_widget_values_match_settings():
@@ -101,11 +104,23 @@ def test_dynamic_settings_registration():
     """Test that dynamically registered settings create widgets."""
     # Create a temporary settings file to avoid polluting the main one
     with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
-        # Create a simple settings dict that YAML can handle
+        # Create settings in rich format
         test_settings = {
-            "CANVAS_SCALE": 1.0,
-            "CANVAS_SIZE": [1024, 1024],  # Use list instead of tuple for YAML
-            "PREFERRED_READER": "test-reader"
+            "CANVAS_SCALE": {
+                "value": 1.0,
+                "default": 1.0,
+                "description": "Scales exported figures and screenshots by this value"
+            },
+            "CANVAS_SIZE": {
+                "value": [1024, 1024],
+                "default": [1024, 1024],
+                "description": "Height x width of the canvas when exporting a screenshot"
+            },
+            "PREFERRED_READER": {
+                "value": "test-reader",
+                "default": "bioio-ome-tiff",
+                "description": "Preferred reader to use when opening images"
+            }
         }
         yaml.dump(test_settings, f)
         temp_file = f.name

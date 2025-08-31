@@ -9,16 +9,36 @@ from ndev_settings._settings import Settings, get_settings
 
 def test_settings(tmp_path):
     """Test basic settings loading and saving."""
-    # Write a temporary settings file
+    # Write a temporary settings file in rich format
     settings_file = tmp_path / "test_settings.yaml"
     settings_file.write_text(
         yaml.dump(
             {
-                "PREFERRED_READER": "test-reader",
-                "SCENE_HANDLING": "test-scene",
-                "CLEAR_LAYERS_ON_NEW_SCENE": True,
-                "UNPACK_CHANNELS_AS_LAYERS": False,
-                "CANVAS_SIZE": [512, 512],  # YAML saves tuples as lists
+                "PREFERRED_READER": {
+                    "value": "test-reader",
+                    "default": "bioio-ome-tiff",
+                    "description": "Preferred reader to use when opening images"
+                },
+                "SCENE_HANDLING": {
+                    "value": "test-scene",
+                    "default": "Open Scene Widget",
+                    "description": "How to handle files with multiple scenes"
+                },
+                "CLEAR_LAYERS_ON_NEW_SCENE": {
+                    "value": True,
+                    "default": False,
+                    "description": "Whether to clear the viewer when selecting a new scene"
+                },
+                "UNPACK_CHANNELS_AS_LAYERS": {
+                    "value": False,
+                    "default": True,
+                    "description": "Whether to unpack channels as layers"
+                },
+                "CANVAS_SIZE": {
+                    "value": [512, 512],
+                    "default": [1024, 1024],
+                    "description": "Height x width of the canvas when exporting a screenshot"
+                }
             }
         )
     )
@@ -131,7 +151,13 @@ def test_settings_registration():
 def test_get_all_settings():
     """Test getting all settings at once."""
     with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
-        yaml.dump({"CANVAS_SCALE": 2.0}, f)
+        yaml.dump({
+            "CANVAS_SCALE": {
+                "value": 2.0,
+                "default": 1.0,
+                "description": "Scales exported figures and screenshots by this value"
+            }
+        }, f)
         settings_file = f.name
 
     try:
@@ -211,7 +237,13 @@ def test_get_settings():
 def test_auto_save_behavior():
     """Test that settings are automatically saved when changed."""
     with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
-        yaml.dump({"CANVAS_SCALE": 1.0}, f)
+        yaml.dump({
+            "CANVAS_SCALE": {
+                "value": 1.0,
+                "default": 1.0,
+                "description": "Scales exported figures and screenshots by this value"
+            }
+        }, f)
         settings_file = f.name
 
     try:

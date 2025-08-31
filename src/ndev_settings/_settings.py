@@ -130,7 +130,8 @@ class Settings:
 
         # Load all settings from the file (rich format only)
         for name, setting_data in saved_settings.items():
-            if "value" in setting_data:
+            if isinstance(setting_data, dict) and "value" in setting_data:
+                # Rich format
                 value = setting_data["value"]
                 # Handle type conversion for tuples (YAML converts tuples to lists)
                 if isinstance(value, list) and name == "CANVAS_SIZE":
@@ -176,29 +177,9 @@ class Settings:
         self._save_settings_file(current_settings)
 
     def _save_settings_file(self, settings_data):
-        """Helper to save settings data to file with value first."""
-        # Reorder each setting to have value first
-        ordered_settings = {}
-        for name, setting in settings_data.items():
-            if isinstance(setting, dict):
-                # Create ordered dict with value first
-                ordered_setting = {}
-                if "value" in setting:
-                    ordered_setting["value"] = setting["value"]
-                if "default" in setting:
-                    ordered_setting["default"] = setting["default"]
-                if "description" in setting:
-                    ordered_setting["description"] = setting["description"]
-                # Add any other metadata in a consistent order
-                for key, value in setting.items():
-                    if key not in ["value", "default", "description"]:
-                        ordered_setting[key] = value
-                ordered_settings[name] = ordered_setting
-            else:
-                ordered_settings[name] = setting
-                
+        """Helper to save settings data to file."""
         with open(self._settings_path, "w") as file:
-            yaml.safe_dump(ordered_settings, file, default_flow_style=False)
+            yaml.safe_dump(settings_data, file, default_flow_style=False)
 
 
 _settings_instance = None
