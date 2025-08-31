@@ -97,7 +97,7 @@ class SettingsContainer(Container):
         }
 
         # Handle any settings not in predefined groups
-        all_settings = set(self.settings._registered_settings.keys())
+        all_settings = set(self.settings._default_settings.keys())
         grouped_settings = set()
         for group_settings in groups.values():
             grouped_settings.update(group_settings)
@@ -117,7 +117,7 @@ class SettingsContainer(Container):
             group_widgets = []
 
             for setting_name in setting_names:
-                if setting_name in self.settings._registered_settings:
+                if setting_name in self.settings._default_settings:
                     setting_info = self.settings.get_setting_info(setting_name)
                     widget = self._create_widget_for_setting(setting_name, setting_info)
 
