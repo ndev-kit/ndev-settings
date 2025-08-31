@@ -3,5 +3,6 @@ try:
 except ImportError:
     __version__ = "unknown"
 
+from ._settings import get_settings, register_setting
 
-__all__ = ()
+__all__ = ("get_settings", "register_setting")
