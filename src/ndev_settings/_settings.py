@@ -18,40 +18,48 @@ class Settings:
         name: str,
         default_value,
         description: str = "",
-        group: str = "Other",
+        group: str = "Unknown",
         **metadata,
     ):
         """Register a new setting (for use by other libraries)."""
-        # Create the setting definition in the rich format with value first
-        setting_definition = {
-            "value": default_value,
-            "default": default_value,
-            "description": description,
-            "group": group,
-            **metadata,
-        }
-
-        # Load current settings to preserve existing values
+        # Load current settings to preserve existing structure
         try:
             with open(self._settings_path) as file:
                 current_settings = yaml.safe_load(file) or {}
         except FileNotFoundError:
             current_settings = {}
 
-        # If setting doesn't exist in file, add it with default value
-        if name not in current_settings:
-            current_settings[name] = setting_definition
+        # Ensure the group exists
+        if group not in current_settings:
+            current_settings[group] = {}
+
+        # Create the setting definition
+        setting_definition = {
+            "value": default_value,
+            "default": default_value,
+            "description": description,
+            **metadata,
+        }
+
+        # If setting doesn't exist in the group, add it with default value
+        if name not in current_settings[group]:
+            current_settings[group][name] = setting_definition
         else:
             # Setting exists, preserve the current value but update metadata
-            existing_value = current_settings[name].get("value", default_value)
-            current_settings[name] = {
+            existing_value = current_settings[group][name].get(
+                "value", default_value
+            )
+            current_settings[group][name] = {
                 **setting_definition,
                 "value": existing_value,
             }
 
         # Set the attribute value (either from file or default)
-        if name in current_settings and "value" in current_settings[name]:
-            value = current_settings[name]["value"]
+        if (
+            name in current_settings[group]
+            and "value" in current_settings[group][name]
+        ):
+            value = current_settings[group][name]["value"]
             # Handle type conversion for tuples
             if isinstance(default_value, tuple) and isinstance(value, list):
                 value = tuple(value)
@@ -80,37 +88,41 @@ class Settings:
             return
 
         if setting_name:
-            # Reset single setting
-            if (
-                setting_name in settings_data
-                and "default" in settings_data[setting_name]
-            ):
-                default_value = settings_data[setting_name]["default"]
-                # Handle tuple conversion for CANVAS_SIZE
-                if setting_name == "CANVAS_SIZE" and isinstance(
-                    default_value, list
+            # Reset single setting - find it in any group
+            for _group_name, group_settings in settings_data.items():
+                if (
+                    isinstance(group_settings, dict)
+                    and setting_name in group_settings
                 ):
-                    default_value = tuple(default_value)
-                setattr(self, setting_name, default_value)
-                settings_data[setting_name]["value"] = settings_data[
-                    setting_name
-                ]["default"]
-                self._save_settings_file(settings_data)
+                    setting_data = group_settings[setting_name]
+                    if "default" in setting_data:
+                        default_value = setting_data["default"]
+                        # Handle tuple conversion for CANVAS_SIZE
+                        if setting_name == "CANVAS_SIZE" and isinstance(
+                            default_value, list
+                        ):
+                            default_value = tuple(default_value)
+                        setattr(self, setting_name, default_value)
+                        setting_data["value"] = setting_data["default"]
+                        self._save_settings_file(settings_data)
+                        return
         else:
             # Reset all settings
-            for name, setting_data in settings_data.items():
-                if (
-                    isinstance(setting_data, dict)
-                    and "default" in setting_data
-                ):
-                    default_value = setting_data["default"]
-                    # Handle tuple conversion for CANVAS_SIZE
-                    if name == "CANVAS_SIZE" and isinstance(
-                        default_value, list
-                    ):
-                        default_value = tuple(default_value)
-                    setattr(self, name, default_value)
-                    setting_data["value"] = setting_data["default"]
+            for _group_name, group_settings in settings_data.items():
+                if isinstance(group_settings, dict):
+                    for name, setting_data in group_settings.items():
+                        if (
+                            isinstance(setting_data, dict)
+                            and "default" in setting_data
+                        ):
+                            default_value = setting_data["default"]
+                            # Handle tuple conversion for CANVAS_SIZE
+                            if name == "CANVAS_SIZE" and isinstance(
+                                default_value, list
+                            ):
+                                default_value = tuple(default_value)
+                            setattr(self, name, default_value)
+                            setting_data["value"] = setting_data["default"]
             self._save_settings_file(settings_data)
 
     def get_default_value(self, setting_name: str):
@@ -118,17 +130,21 @@ class Settings:
         try:
             with open(self._settings_path) as file:
                 settings_data = yaml.safe_load(file) or {}
-                if (
-                    setting_name in settings_data
-                    and "default" in settings_data[setting_name]
-                ):
-                    default = settings_data[setting_name]["default"]
-                    # Handle tuple conversion for CANVAS_SIZE
-                    if setting_name == "CANVAS_SIZE" and isinstance(
-                        default, list
+                # Search through all groups for the setting
+                for _group_name, group_settings in settings_data.items():
+                    if (
+                        isinstance(group_settings, dict)
+                        and setting_name in group_settings
                     ):
-                        return tuple(default)
-                    return default
+                        setting_data = group_settings[setting_name]
+                        if "default" in setting_data:
+                            default = setting_data["default"]
+                            # Handle tuple conversion for CANVAS_SIZE
+                            if setting_name == "CANVAS_SIZE" and isinstance(
+                                default, list
+                            ):
+                                return tuple(default)
+                            return default
                 return None
         except FileNotFoundError:
             return None
@@ -138,11 +154,18 @@ class Settings:
         try:
             with open(self._settings_path) as file:
                 settings = yaml.safe_load(file) or {}
-                if name in settings:
-                    # Return all metadata except 'value'
-                    return {
-                        k: v for k, v in settings[name].items() if k != "value"
-                    }
+                # Search through all groups for the setting
+                for _group_name, group_settings in settings.items():
+                    if (
+                        isinstance(group_settings, dict)
+                        and name in group_settings
+                    ):
+                        # Return all metadata except 'value'
+                        return {
+                            k: v
+                            for k, v in group_settings[name].items()
+                            if k != "value"
+                        }
                 return {}
         except FileNotFoundError:
             return {}
@@ -152,11 +175,17 @@ class Settings:
         try:
             with open(self._settings_path) as file:
                 settings = yaml.safe_load(file) or {}
-                return {
-                    name: setting["value"]
-                    for name, setting in settings.items()
-                    if "value" in setting
-                }
+                all_settings = {}
+                # Collect settings from all groups
+                for _group_name, group_settings in settings.items():
+                    if isinstance(group_settings, dict):
+                        for name, setting in group_settings.items():
+                            if (
+                                isinstance(setting, dict)
+                                and "value" in setting
+                            ):
+                                all_settings[name] = setting["value"]
+                return all_settings
         except FileNotFoundError:
             return {}
 
@@ -165,16 +194,8 @@ class Settings:
         try:
             with open(self._settings_path) as file:
                 settings = yaml.safe_load(file) or {}
-                groups = {}
-
-                for name, setting_data in settings.items():
-                    if isinstance(setting_data, dict):
-                        group = setting_data.get("group", "Other")
-                        if group not in groups:
-                            groups[group] = {}
-                        groups[group][name] = setting_data
-
-                return groups
+                # The settings are already organized by groups in the new structure
+                return settings
         except FileNotFoundError:
             return {}
 
@@ -183,11 +204,16 @@ class Settings:
         try:
             with open(self._settings_path) as file:
                 settings = yaml.safe_load(file) or {}
-                if name in settings and isinstance(settings[name], dict):
-                    return settings[name].get("group", "Other")
-                return "Other"
+                # Search through all groups for the setting
+                for group_name, group_settings in settings.items():
+                    if (
+                        isinstance(group_settings, dict)
+                        and name in group_settings
+                    ):
+                        return group_name
+                return "Unknown"
         except FileNotFoundError:
-            return "Other"
+            return "Unknown"
 
     def load_settings(self):
         """Load settings from the settings file."""
@@ -198,16 +224,20 @@ class Settings:
             # If file doesn't exist, it will be created when settings are first saved
             saved_settings = {}
 
-        # Load all settings from the file (rich format only)
-        for name, setting_data in saved_settings.items():
-            if isinstance(setting_data, dict) and "value" in setting_data:
-                # Rich format
-                value = setting_data["value"]
-                # Handle type conversion for tuples (YAML converts tuples to lists)
-                if isinstance(value, list) and name == "CANVAS_SIZE":
-                    # Convert CANVAS_SIZE back to tuple for consistency
-                    value = tuple(value)
-                setattr(self, name, value)
+        # Load all settings from all groups
+        for _group_name, group_settings in saved_settings.items():
+            if isinstance(group_settings, dict):
+                for name, setting_data in group_settings.items():
+                    if (
+                        isinstance(setting_data, dict)
+                        and "value" in setting_data
+                    ):
+                        value = setting_data["value"]
+                        # Handle type conversion for tuples (YAML converts tuples to lists)
+                        if isinstance(value, list) and name == "CANVAS_SIZE":
+                            # Convert CANVAS_SIZE back to tuple for consistency
+                            value = tuple(value)
+                        setattr(self, name, value)
 
     def __setattr__(self, name, value):
         """Override setattr to auto-save when settings are changed."""
@@ -230,23 +260,33 @@ class Settings:
         except FileNotFoundError:
             current_settings = {}
 
-        # Update values while preserving metadata (rich format only)
+        # Update values while preserving the group structure
         for attr_name in dir(self):
             if not attr_name.startswith("_") and not callable(
                 getattr(self, attr_name)
             ):
                 value = getattr(self, attr_name)
 
-                if attr_name in current_settings:
-                    # Update existing rich setting value
-                    current_settings[attr_name]["value"] = value
-                else:
-                    # Create new setting entry with value first
-                    current_settings[attr_name] = {
+                # Find which group this setting belongs to
+                setting_found = False
+                for _group_name, group_settings in current_settings.items():
+                    if (
+                        isinstance(group_settings, dict)
+                        and attr_name in group_settings
+                    ):
+                        # Update existing setting value
+                        group_settings[attr_name]["value"] = value
+                        setting_found = True
+                        break
+
+                if not setting_found:
+                    # Create new setting in "Unknown" group
+                    if "Unknown" not in current_settings:
+                        current_settings["Unknown"] = {}
+                    current_settings["Unknown"][attr_name] = {
                         "value": value,
                         "default": value,
                         "description": f"Setting {attr_name}",
-                        "group": "Other",
                     }
 
         self._save_settings_file(current_settings)
@@ -274,7 +314,7 @@ def register_setting(
     name: str,
     default_value,
     description: str = "",
-    group: str = "Other",
+    group: str = "Unknown",
     **metadata,
 ):
     """
