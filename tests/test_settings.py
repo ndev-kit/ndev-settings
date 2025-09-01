@@ -9,35 +9,39 @@ from ndev_settings._settings import Settings, get_settings
 
 def test_settings(tmp_path):
     """Test basic settings loading and saving."""
-    # Write a temporary settings file in rich format
+    # Write a temporary settings file in new grouped format
     settings_file = tmp_path / "test_settings.yaml"
     settings_file.write_text(
         yaml.dump(
             {
-                "PREFERRED_READER": {
-                    "value": "test-reader",
-                    "default": "bioio-ome-tiff",
-                    "description": "Preferred reader to use when opening images",
+                "Reader": {
+                    "preferred_reader": {
+                        "value": "test-reader",
+                        "default": "bioio-ome-tiff",
+                        "description": "Preferred reader to use when opening images",
+                    },
+                    "scene_handling": {
+                        "value": "test-scene",
+                        "default": "Open Scene Widget",
+                        "description": "How to handle files with multiple scenes",
+                    },
+                    "clear_layers_on_new_scene": {
+                        "value": True,
+                        "default": False,
+                        "description": "Whether to clear the viewer when selecting a new scene",
+                    },
+                    "unpack_channels_as_layers": {
+                        "value": False,
+                        "default": True,
+                        "description": "Whether to unpack channels as layers",
+                    },
                 },
-                "SCENE_HANDLING": {
-                    "value": "test-scene",
-                    "default": "Open Scene Widget",
-                    "description": "How to handle files with multiple scenes",
-                },
-                "CLEAR_LAYERS_ON_NEW_SCENE": {
-                    "value": True,
-                    "default": False,
-                    "description": "Whether to clear the viewer when selecting a new scene",
-                },
-                "UNPACK_CHANNELS_AS_LAYERS": {
-                    "value": False,
-                    "default": True,
-                    "description": "Whether to unpack channels as layers",
-                },
-                "CANVAS_SIZE": {
-                    "value": [512, 512],
-                    "default": [1024, 1024],
-                    "description": "Height x width of the canvas when exporting a screenshot",
+                "Canvas": {
+                    "canvas_size": {
+                        "value": [512, 512],
+                        "default": [1024, 1024],
+                        "description": "Height x width of the canvas when exporting a screenshot",
+                    },
                 },
             }
         )
@@ -45,33 +49,35 @@ def test_settings(tmp_path):
 
     # Test that the settings are loaded correctly (init calls load_settings)
     settings = Settings(str(settings_file))
-    assert settings.PREFERRED_READER == "test-reader"
-    assert settings.SCENE_HANDLING == "test-scene"
-    assert settings.CLEAR_LAYERS_ON_NEW_SCENE
-    assert not settings.UNPACK_CHANNELS_AS_LAYERS
+    assert settings.preferred_reader == "test-reader"
+    assert settings.scene_handling == "test-scene"
+    assert settings.clear_layers_on_new_scene
+    assert not settings.unpack_channels_as_layers
     # Test that list from YAML is converted back to tuple
-    assert settings.CANVAS_SIZE == (512, 512)
-    assert isinstance(settings.CANVAS_SIZE, tuple)
+    assert settings.canvas_size == (512, 512)
+    assert isinstance(settings.canvas_size, tuple)
 
     # Update settings, and then test that save works
-    settings.PREFERRED_READER = "new-reader"
-    settings.SCENE_HANDLING = "new-scene"
-    settings.CLEAR_LAYERS_ON_NEW_SCENE = False
-    settings.UNPACK_CHANNELS_AS_LAYERS = True
-    settings.CANVAS_SIZE = (256, 256)
+    settings.preferred_reader = "new-reader"
+    settings.scene_handling = "new-scene"
+    settings.clear_layers_on_new_scene = False
+    settings.unpack_channels_as_layers = True
+    settings.canvas_size = (256, 256)
 
     settings.save_settings()
 
     with open(settings_file) as file:
         saved_settings = yaml.safe_load(file)
 
-    # With rich format, we need to check the 'value' key
-    assert saved_settings["PREFERRED_READER"]["value"] == "new-reader"
-    assert saved_settings["SCENE_HANDLING"]["value"] == "new-scene"
-    assert not saved_settings["CLEAR_LAYERS_ON_NEW_SCENE"]["value"]
-    assert saved_settings["UNPACK_CHANNELS_AS_LAYERS"]["value"]
+    # With grouped format, check the structure
+    assert (
+        saved_settings["Reader"]["preferred_reader"]["value"] == "new-reader"
+    )
+    assert saved_settings["Reader"]["scene_handling"]["value"] == "new-scene"
+    assert not saved_settings["Reader"]["clear_layers_on_new_scene"]["value"]
+    assert saved_settings["Reader"]["unpack_channels_as_layers"]["value"]
     # Note: YAML will save tuple as list, but that's expected
-    assert saved_settings["CANVAS_SIZE"]["value"] == [256, 256]
+    assert saved_settings["Canvas"]["canvas_size"]["value"] == [256, 256]
 
 
 def test_default_settings_structure():

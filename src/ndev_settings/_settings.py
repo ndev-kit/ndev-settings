@@ -97,8 +97,8 @@ class Settings:
                     setting_data = group_settings[setting_name]
                     if "default" in setting_data:
                         default_value = setting_data["default"]
-                        # Handle tuple conversion for CANVAS_SIZE
-                        if setting_name == "CANVAS_SIZE" and isinstance(
+                        # Handle tuple conversion for canvas_size
+                        if setting_name == "canvas_size" and isinstance(
                             default_value, list
                         ):
                             default_value = tuple(default_value)
@@ -116,8 +116,8 @@ class Settings:
                             and "default" in setting_data
                         ):
                             default_value = setting_data["default"]
-                            # Handle tuple conversion for CANVAS_SIZE
-                            if name == "CANVAS_SIZE" and isinstance(
+                            # Handle tuple conversion for canvas_size
+                            if name == "canvas_size" and isinstance(
                                 default_value, list
                             ):
                                 default_value = tuple(default_value)
@@ -139,8 +139,8 @@ class Settings:
                         setting_data = group_settings[setting_name]
                         if "default" in setting_data:
                             default = setting_data["default"]
-                            # Handle tuple conversion for CANVAS_SIZE
-                            if setting_name == "CANVAS_SIZE" and isinstance(
+                            # Handle tuple conversion for canvas_size
+                            if setting_name == "canvas_size" and isinstance(
                                 default, list
                             ):
                                 return tuple(default)
@@ -234,8 +234,8 @@ class Settings:
                     ):
                         value = setting_data["value"]
                         # Handle type conversion for tuples (YAML converts tuples to lists)
-                        if isinstance(value, list) and name == "CANVAS_SIZE":
-                            # Convert CANVAS_SIZE back to tuple for consistency
+                        if isinstance(value, list) and name == "canvas_size":
+                            # Convert canvas_size back to tuple for consistency
                             value = tuple(value)
                         setattr(self, name, value)
 

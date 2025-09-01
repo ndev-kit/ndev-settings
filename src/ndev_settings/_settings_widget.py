@@ -36,7 +36,7 @@ class SettingsContainer(Container):
         description = info.get("description", "")
 
         # Handle special cases first
-        if name == "PREFERRED_READER":
+        if name == "preferred_reader":
             available_readers = self._get_available_readers()
             readers_available = available_readers != ["No readers found"]
             current_value = (
@@ -133,8 +133,8 @@ class SettingsContainer(Container):
     def _update_settings(self):
         """Update settings when any widget value changes."""
         for setting_name, widget in self._widgets.items():
-            # Handle special case for PREFERRED_READER availability
-            if setting_name == "PREFERRED_READER" and not widget.enabled:
+            # Handle special case for preferred_reader availability
+            if setting_name == "preferred_reader" and not widget.enabled:
                 continue
 
             # Auto-save happens automatically via __setattr__
