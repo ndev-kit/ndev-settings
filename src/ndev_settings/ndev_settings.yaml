@@ -1,6 +1,7 @@
 CANVAS_SCALE:
   default: 1.0
   description: Scales exported figures and screenshots by this value
+  group: Canvas
   max: 100.0
   min: 0.1
   value: 1.0
@@ -9,20 +10,24 @@ CANVAS_SIZE:
   - 1024
   - 1024
   description: Height x width of the canvas when exporting a screenshot
+  group: Canvas
   value:
   - 1024
   - 1024
 CLEAR_LAYERS_ON_NEW_SCENE:
   default: false
   description: Whether to clear the viewer when selecting a new scene
+  group: Reader
   value: false
 OVERRIDE_CANVAS_SIZE:
   default: false
   description: Whether to override the canvas size when exporting canvas screenshot
+  group: Canvas
   value: false
 PREFERRED_READER:
   default: bioio-ome-tiff
   description: Preferred reader to use when opening images
+  group: Reader
   value: bioio-ome-tiff
 SCENE_HANDLING:
   choices:
@@ -31,8 +36,10 @@ SCENE_HANDLING:
   - View First Scene Only
   default: Open Scene Widget
   description: How to handle files with multiple scenes
+  group: Reader
   value: Open Scene Widget
 UNPACK_CHANNELS_AS_LAYERS:
   default: true
   description: Whether to unpack channels as layers
+  group: Reader
   value: true

@@ -23,10 +23,14 @@ class SettingsContainer(Container):
 
     def _get_available_readers(self):
         """Get available bioio readers."""
-        readers = [reader.name for reader in entry_points(group="bioio.readers")]
+        readers = [
+            reader.name for reader in entry_points(group="bioio.readers")
+        ]
         return readers if readers else ["No readers found"]
 
-    def _create_widget_for_setting(self, name: str, info: dict) -> Widget | None:
+    def _create_widget_for_setting(
+        self, name: str, info: dict
+    ) -> Widget | None:
         """Create appropriate widget for a setting based on its metadata."""
         default_value = getattr(self.settings, name)
         description = info.get("description", "")
@@ -35,7 +39,11 @@ class SettingsContainer(Container):
         if name == "PREFERRED_READER":
             available_readers = self._get_available_readers()
             readers_available = available_readers != ["No readers found"]
-            current_value = default_value if default_value in available_readers else available_readers[0]
+            current_value = (
+                default_value
+                if default_value in available_readers
+                else available_readers[0]
+            )
 
             return ComboBox(
                 label="Preferred Reader",
@@ -70,7 +78,11 @@ class SettingsContainer(Container):
             )
         elif isinstance(default_value, tuple | list):
             # Convert list to tuple if needed for consistency
-            tuple_value = tuple(default_value) if isinstance(default_value, list) else default_value
+            tuple_value = (
+                tuple(default_value)
+                if isinstance(default_value, list)
+                else default_value
+            )
             return TupleEdit(
                 label=name.replace("_", " ").title(),
                 value=tuple_value,
@@ -81,45 +93,22 @@ class SettingsContainer(Container):
         return None
 
     def _group_settings(self) -> dict:
-        """Group settings by category for organization."""
-        groups = {
-            "Reader Settings": [
-                "PREFERRED_READER",
-                "SCENE_HANDLING",
-                "CLEAR_LAYERS_ON_NEW_SCENE",
-                "UNPACK_CHANNELS_AS_LAYERS"
-            ],
-            "Export Settings": [
-                "CANVAS_SCALE",
-                "OVERRIDE_CANVAS_SIZE",
-                "CANVAS_SIZE"
-            ],
-        }
-
-        # Handle any settings not in predefined groups
-        all_settings = set(self.settings.get_all_settings().keys())
-        grouped_settings = set()
-        for group_settings in groups.values():
-            grouped_settings.update(group_settings)
-
-        ungrouped = all_settings - grouped_settings
-        if ungrouped:
-            groups["Other Settings"] = list(ungrouped)
-
-        return groups
+        """Group settings by their defined groups from the YAML file."""
+        return self.settings.get_settings_by_group()
 
     def _init_widgets(self):
         """Initialize all widgets dynamically based on registered settings."""
         groups = self._group_settings()
         containers = []
 
-        for group_name, setting_names in groups.items():
+        for group_name, settings_dict in groups.items():
             group_widgets = []
 
-            for setting_name in setting_names:
+            for setting_name, setting_data in settings_dict.items():
                 if hasattr(self.settings, setting_name):
-                    setting_info = self.settings.get_setting_info(setting_name)
-                    widget = self._create_widget_for_setting(setting_name, setting_info)
+                    widget = self._create_widget_for_setting(
+                        setting_name, setting_data
+                    )
 
                     if widget:
                         self._widgets[setting_name] = widget
@@ -127,7 +116,7 @@ class SettingsContainer(Container):
 
             if group_widgets:
                 container = GroupBoxContainer(
-                    name=group_name,
+                    name=f"{group_name} Settings",
                     widgets=group_widgets,
                     layout="vertical",
                 )

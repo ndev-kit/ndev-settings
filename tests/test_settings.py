@@ -17,28 +17,28 @@ def test_settings(tmp_path):
                 "PREFERRED_READER": {
                     "value": "test-reader",
                     "default": "bioio-ome-tiff",
-                    "description": "Preferred reader to use when opening images"
+                    "description": "Preferred reader to use when opening images",
                 },
                 "SCENE_HANDLING": {
                     "value": "test-scene",
                     "default": "Open Scene Widget",
-                    "description": "How to handle files with multiple scenes"
+                    "description": "How to handle files with multiple scenes",
                 },
                 "CLEAR_LAYERS_ON_NEW_SCENE": {
                     "value": True,
                     "default": False,
-                    "description": "Whether to clear the viewer when selecting a new scene"
+                    "description": "Whether to clear the viewer when selecting a new scene",
                 },
                 "UNPACK_CHANNELS_AS_LAYERS": {
                     "value": False,
                     "default": True,
-                    "description": "Whether to unpack channels as layers"
+                    "description": "Whether to unpack channels as layers",
                 },
                 "CANVAS_SIZE": {
                     "value": [512, 512],
                     "default": [1024, 1024],
-                    "description": "Height x width of the canvas when exporting a screenshot"
-                }
+                    "description": "Height x width of the canvas when exporting a screenshot",
+                },
             }
         )
     )
@@ -80,14 +80,21 @@ def test_default_settings_structure():
 
     # Check that all expected settings are present
     expected_settings = {
-        "PREFERRED_READER", "SCENE_HANDLING", "CLEAR_LAYERS_ON_NEW_SCENE",
-        "UNPACK_CHANNELS_AS_LAYERS", "CANVAS_SCALE", "OVERRIDE_CANVAS_SIZE", "CANVAS_SIZE"
+        "PREFERRED_READER",
+        "SCENE_HANDLING",
+        "CLEAR_LAYERS_ON_NEW_SCENE",
+        "UNPACK_CHANNELS_AS_LAYERS",
+        "CANVAS_SCALE",
+        "OVERRIDE_CANVAS_SIZE",
+        "CANVAS_SIZE",
     }
 
     # Get all loaded settings
     loaded_settings = set()
     for attr_name in dir(settings):
-        if not attr_name.startswith('_') and not callable(getattr(settings, attr_name)):
+        if not attr_name.startswith("_") and not callable(
+            getattr(settings, attr_name)
+        ):
             loaded_settings.add(attr_name)
 
     # Check that expected settings are a subset of loaded settings
@@ -102,7 +109,9 @@ def test_default_settings_structure():
 def test_settings_registration():
     """Test that external libraries can register new settings."""
     # Create a temporary settings file
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".yaml", delete=False
+    ) as f:
         yaml.dump({}, f)
         settings_file = f.name
 
@@ -111,11 +120,19 @@ def test_settings_registration():
         settings = Settings(settings_file)
 
         # Register a new setting
-        settings.register_setting("TEST_SETTING", "default_value", "Test description")
-        settings.register_setting("TEST_NUMERIC", 42, "Test numeric", min=0, max=100)
+        settings.register_setting(
+            "TEST_SETTING", "default_value", "Test description"
+        )
+        settings.register_setting(
+            "TEST_NUMERIC", 42, "Test numeric", min=0, max=100
+        )
         settings.register_setting("TEST_BOOLEAN", True, "Test boolean")
-        settings.register_setting("TEST_CHOICES", "option1", "Test choices",
-                                choices=["option1", "option2", "option3"])
+        settings.register_setting(
+            "TEST_CHOICES",
+            "option1",
+            "Test choices",
+            choices=["option1", "option2", "option3"],
+        )
 
         # Check that settings were registered
         assert hasattr(settings, "TEST_SETTING")
@@ -140,7 +157,9 @@ def test_settings_registration():
         # To properly test save/load of dynamically registered settings,
         # we create a new instance and register the setting again
         settings2 = Settings(settings_file)
-        settings2.register_setting("TEST_SETTING", "default_value", "Test description")
+        settings2.register_setting(
+            "TEST_SETTING", "default_value", "Test description"
+        )
         # The setting should have been loaded from the saved file, not use the default
         assert settings2.TEST_SETTING == "new_value"
 
@@ -150,19 +169,26 @@ def test_settings_registration():
 
 def test_get_all_settings():
     """Test getting all settings at once."""
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
-        yaml.dump({
-            "CANVAS_SCALE": {
-                "value": 2.0,
-                "default": 1.0,
-                "description": "Scales exported figures and screenshots by this value"
-            }
-        }, f)
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".yaml", delete=False
+    ) as f:
+        yaml.dump(
+            {
+                "CANVAS_SCALE": {
+                    "value": 2.0,
+                    "default": 1.0,
+                    "description": "Scales exported figures and screenshots by this value",
+                }
+            },
+            f,
+        )
         settings_file = f.name
 
     try:
         settings = Settings(settings_file)
-        settings.register_setting("CUSTOM_SETTING", "custom_value", "Custom setting")
+        settings.register_setting(
+            "CUSTOM_SETTING", "custom_value", "Custom setting"
+        )
 
         all_settings = settings.get_all_settings()
 
@@ -181,7 +207,9 @@ def test_register_setting_convenience_function():
     # This uses the singleton, so we need to be careful not to pollute other tests
     try:
         # Register a setting using the convenience function
-        register_setting("TEMP_TEST_SETTING", "temp_value", "Temporary test setting")
+        register_setting(
+            "TEMP_TEST_SETTING", "temp_value", "Temporary test setting"
+        )
 
         settings = get_settings()
         assert hasattr(settings, "TEMP_TEST_SETTING")
@@ -236,14 +264,19 @@ def test_get_settings():
 
 def test_auto_save_behavior():
     """Test that settings are automatically saved when changed."""
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
-        yaml.dump({
-            "CANVAS_SCALE": {
-                "value": 1.0,
-                "default": 1.0,
-                "description": "Scales exported figures and screenshots by this value"
-            }
-        }, f)
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".yaml", delete=False
+    ) as f:
+        yaml.dump(
+            {
+                "CANVAS_SCALE": {
+                    "value": 1.0,
+                    "default": 1.0,
+                    "description": "Scales exported figures and screenshots by this value",
+                }
+            },
+            f,
+        )
         settings_file = f.name
 
     try:
@@ -258,3 +291,95 @@ def test_auto_save_behavior():
 
     finally:
         os.unlink(settings_file)
+
+
+def test_settings_groups(tmp_path):
+    """Test group functionality for settings."""
+    # Create a temporary settings file with groups
+    settings_file = tmp_path / "test_settings.yaml"
+    settings_data = {
+        "SETTING_A": {
+            "value": "test_a",
+            "default": "default_a",
+            "description": "Test setting A",
+            "group": "Group 1",
+        },
+        "SETTING_B": {
+            "value": "test_b",
+            "default": "default_b",
+            "description": "Test setting B",
+            "group": "Group 1",
+        },
+        "SETTING_C": {
+            "value": "test_c",
+            "default": "default_c",
+            "description": "Test setting C",
+            "group": "Group 2",
+        },
+        "SETTING_NO_GROUP": {
+            "value": "test_no_group",
+            "default": "default_no_group",
+            "description": "Test setting without group",
+        },
+    }
+    settings_file.write_text(yaml.dump(settings_data))
+
+    settings = Settings(str(settings_file))
+
+    # Test get_settings_by_group
+    groups = settings.get_settings_by_group()
+    assert "Group 1" in groups
+    assert "Group 2" in groups
+    assert "Other" in groups  # Setting without group goes to "Other"
+
+    assert len(groups["Group 1"]) == 2
+    assert len(groups["Group 2"]) == 1
+    assert len(groups["Other"]) == 1
+
+    assert "SETTING_A" in groups["Group 1"]
+    assert "SETTING_B" in groups["Group 1"]
+    assert "SETTING_C" in groups["Group 2"]
+    assert "SETTING_NO_GROUP" in groups["Other"]
+
+    # Test get_group_for_setting
+    assert settings.get_group_for_setting("SETTING_A") == "Group 1"
+    assert settings.get_group_for_setting("SETTING_B") == "Group 1"
+    assert settings.get_group_for_setting("SETTING_C") == "Group 2"
+    assert settings.get_group_for_setting("SETTING_NO_GROUP") == "Other"
+    assert settings.get_group_for_setting("NONEXISTENT") == "Other"
+
+
+def test_register_setting_with_group(tmp_path):
+    """Test registering a setting with a group."""
+    settings_file = tmp_path / "test_settings.yaml"
+    settings = Settings(str(settings_file))
+
+    # Register a setting with a group
+    settings.register_setting(
+        "TEST_SETTING",
+        "default_value",
+        description="A test setting",
+        group="Test Group",
+    )
+
+    # Verify the setting was registered with the correct group
+    assert settings.get_group_for_setting("TEST_SETTING") == "Test Group"
+
+    # Verify it appears in the grouped settings
+    groups = settings.get_settings_by_group()
+    assert "Test Group" in groups
+    assert "TEST_SETTING" in groups["Test Group"]
+    assert groups["Test Group"]["TEST_SETTING"]["group"] == "Test Group"
+
+    # Test the module-level register_setting function
+    register_setting(
+        "ANOTHER_TEST_SETTING",
+        42,
+        description="Another test setting",
+        group="Another Group",
+    )
+
+    # Get fresh groups to include the new setting
+    groups = settings.get_settings_by_group()
+    assert "Another Group" in groups
+    assert "ANOTHER_TEST_SETTING" in groups["Another Group"]

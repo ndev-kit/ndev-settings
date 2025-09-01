@@ -13,14 +13,22 @@ class Settings:
         self.load_settings()
         self._loading = False  # Enable auto-save after initialization
 
-    def register_setting(self, name: str, default_value, description: str = "", **metadata):
+    def register_setting(
+        self,
+        name: str,
+        default_value,
+        description: str = "",
+        group: str = "Other",
+        **metadata,
+    ):
         """Register a new setting (for use by other libraries)."""
         # Create the setting definition in the rich format with value first
         setting_definition = {
             "value": default_value,
             "default": default_value,
             "description": description,
-            **metadata
+            "group": group,
+            **metadata,
         }
 
         # Load current settings to preserve existing values
@@ -38,9 +46,9 @@ class Settings:
             existing_value = current_settings[name].get("value", default_value)
             current_settings[name] = {
                 **setting_definition,
-                "value": existing_value
+                "value": existing_value,
             }
-            
+
         # Set the attribute value (either from file or default)
         if name in current_settings and "value" in current_settings[name]:
             value = current_settings[name]["value"]
@@ -49,12 +57,22 @@ class Settings:
                 value = tuple(value)
             setattr(self, name, value)
         else:
-            setattr(self, name, default_value)        # Save the updated settings file
+            setattr(
+                self, name, default_value
+            )  # Save the updated settings file
         if not self._loading:
             self._save_settings_file(current_settings)
 
     def reset_to_default(self, setting_name: str | None = None):
-        """Reset a setting (or all settings) to their default values."""
+        """Reset a setting (or all settings) to their default values.
+
+        If setting_name is None, reset all settings.
+
+        Parameters
+        ----------
+        setting_name : str | None
+            The name of the setting to reset, or None to reset all settings.
+        """
         try:
             with open(self._settings_path) as file:
                 settings_data = yaml.safe_load(file) or {}
@@ -63,21 +81,33 @@ class Settings:
 
         if setting_name:
             # Reset single setting
-            if setting_name in settings_data and "default" in settings_data[setting_name]:
+            if (
+                setting_name in settings_data
+                and "default" in settings_data[setting_name]
+            ):
                 default_value = settings_data[setting_name]["default"]
                 # Handle tuple conversion for CANVAS_SIZE
-                if setting_name == "CANVAS_SIZE" and isinstance(default_value, list):
+                if setting_name == "CANVAS_SIZE" and isinstance(
+                    default_value, list
+                ):
                     default_value = tuple(default_value)
                 setattr(self, setting_name, default_value)
-                settings_data[setting_name]["value"] = settings_data[setting_name]["default"]
+                settings_data[setting_name]["value"] = settings_data[
+                    setting_name
+                ]["default"]
                 self._save_settings_file(settings_data)
         else:
             # Reset all settings
             for name, setting_data in settings_data.items():
-                if isinstance(setting_data, dict) and "default" in setting_data:
+                if (
+                    isinstance(setting_data, dict)
+                    and "default" in setting_data
+                ):
                     default_value = setting_data["default"]
                     # Handle tuple conversion for CANVAS_SIZE
-                    if name == "CANVAS_SIZE" and isinstance(default_value, list):
+                    if name == "CANVAS_SIZE" and isinstance(
+                        default_value, list
+                    ):
                         default_value = tuple(default_value)
                     setattr(self, name, default_value)
                     setting_data["value"] = setting_data["default"]
@@ -88,10 +118,15 @@ class Settings:
         try:
             with open(self._settings_path) as file:
                 settings_data = yaml.safe_load(file) or {}
-                if setting_name in settings_data and "default" in settings_data[setting_name]:
+                if (
+                    setting_name in settings_data
+                    and "default" in settings_data[setting_name]
+                ):
                     default = settings_data[setting_name]["default"]
                     # Handle tuple conversion for CANVAS_SIZE
-                    if setting_name == "CANVAS_SIZE" and isinstance(default, list):
+                    if setting_name == "CANVAS_SIZE" and isinstance(
+                        default, list
+                    ):
                         return tuple(default)
                     return default
                 return None
@@ -105,7 +140,9 @@ class Settings:
                 settings = yaml.safe_load(file) or {}
                 if name in settings:
                     # Return all metadata except 'value'
-                    return {k: v for k, v in settings[name].items() if k != "value"}
+                    return {
+                        k: v for k, v in settings[name].items() if k != "value"
+                    }
                 return {}
         except FileNotFoundError:
             return {}
@@ -115,9 +152,42 @@ class Settings:
         try:
             with open(self._settings_path) as file:
                 settings = yaml.safe_load(file) or {}
-                return {name: setting["value"] for name, setting in settings.items() if "value" in setting}
+                return {
+                    name: setting["value"]
+                    for name, setting in settings.items()
+                    if "value" in setting
+                }
         except FileNotFoundError:
             return {}
+
+    def get_settings_by_group(self) -> dict:
+        """Get all settings organized by their groups."""
+        try:
+            with open(self._settings_path) as file:
+                settings = yaml.safe_load(file) or {}
+                groups = {}
+
+                for name, setting_data in settings.items():
+                    if isinstance(setting_data, dict):
+                        group = setting_data.get("group", "Other")
+                        if group not in groups:
+                            groups[group] = {}
+                        groups[group][name] = setting_data
+
+                return groups
+        except FileNotFoundError:
+            return {}
+
+    def get_group_for_setting(self, name: str) -> str:
+        """Get the group name for a specific setting."""
+        try:
+            with open(self._settings_path) as file:
+                settings = yaml.safe_load(file) or {}
+                if name in settings and isinstance(settings[name], dict):
+                    return settings[name].get("group", "Other")
+                return "Other"
+        except FileNotFoundError:
+            return "Other"
 
     def load_settings(self):
         """Load settings from the settings file."""
@@ -144,10 +214,12 @@ class Settings:
         super().__setattr__(name, value)
 
         # Auto-save if we're changing a setting (not internal attributes) and not during loading
-        if (not name.startswith('_') and
-            name not in ('settings_file',) and
-            hasattr(self, '_loading') and
-            not self._loading):
+        if (
+            not name.startswith("_")
+            and name not in ("settings_file",)
+            and hasattr(self, "_loading")
+            and not self._loading
+        ):
             self.save_settings()
 
     def save_settings(self):
@@ -160,7 +232,9 @@ class Settings:
 
         # Update values while preserving metadata (rich format only)
         for attr_name in dir(self):
-            if not attr_name.startswith('_') and not callable(getattr(self, attr_name)):
+            if not attr_name.startswith("_") and not callable(
+                getattr(self, attr_name)
+            ):
                 value = getattr(self, attr_name)
 
                 if attr_name in current_settings:
@@ -171,7 +245,8 @@ class Settings:
                     current_settings[attr_name] = {
                         "value": value,
                         "default": value,
-                        "description": f"Setting {attr_name}"
+                        "description": f"Setting {attr_name}",
+                        "group": "Other",
                     }
 
         self._save_settings_file(current_settings)
@@ -195,13 +270,21 @@ def get_settings() -> Settings:
     return _settings_instance
 
 
-def register_setting(name: str, default_value, description: str = "", **metadata):
+def register_setting(
+    name: str,
+    default_value,
+    description: str = "",
+    group: str = "Other",
+    **metadata,
+):
     """
     Convenience function for other libraries to register settings.
 
     Example usage:
     from ndev_settings import register_setting
-    register_setting("MY_PLUGIN_ENABLED", True, "Enable my plugin features")
+    register_setting("MY_PLUGIN_ENABLED", True, "Enable my plugin features", group="My Plugin")
     """
     settings = get_settings()
-    settings.register_setting(name, default_value, description, **metadata)
+    settings.register_setting(
+        name, default_value, description, group, **metadata
+    )
