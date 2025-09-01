@@ -23,13 +23,8 @@ class Settings:
     ):
         """Register a new setting (for use by other libraries)."""
         # Load current settings to preserve existing structure
-        try:
-            with open(self._settings_path) as file:
-                current_settings = (
-                    yaml.load(file, Loader=yaml.FullLoader) or {}
-                )
-        except FileNotFoundError:
-            current_settings = {}
+        with open(self._settings_path) as file:
+            current_settings = yaml.load(file, Loader=yaml.FullLoader) or {}
 
         # Ensure the group exists
         if group not in current_settings:
@@ -80,11 +75,8 @@ class Settings:
         setting_name : str | None
             The name of the setting to reset, or None to reset all settings.
         """
-        try:
-            with open(self._settings_path) as file:
-                settings_data = yaml.load(file, Loader=yaml.FullLoader) or {}
-        except FileNotFoundError:
-            return
+        with open(self._settings_path) as file:
+            settings_data = yaml.load(file, Loader=yaml.FullLoader) or {}
 
         if setting_name:
             # Reset single setting - find it in any group
@@ -116,97 +108,69 @@ class Settings:
 
     def get_default_value(self, setting_name: str):
         """Get the default value for a setting."""
-        try:
-            with open(self._settings_path) as file:
-                settings_data = yaml.load(file, Loader=yaml.FullLoader) or {}
-                # Search through all groups for the setting
-                for _group_name, group_settings in settings_data.items():
-                    if (
-                        isinstance(group_settings, dict)
-                        and setting_name in group_settings
-                    ):
-                        setting_data = group_settings[setting_name]
-                        if "default" in setting_data:
-                            default = setting_data["default"]
-                            return default
-                return None
-        except FileNotFoundError:
+        with open(self._settings_path) as file:
+            settings_data = yaml.load(file, Loader=yaml.FullLoader) or {}
+            # Search through all groups for the setting
+            for _group_name, group_settings in settings_data.items():
+                if (
+                    isinstance(group_settings, dict)
+                    and setting_name in group_settings
+                ):
+                    setting_data = group_settings[setting_name]
+                    if "default" in setting_data:
+                        default = setting_data["default"]
+                        return default
             return None
 
     def get_setting_info(self, name: str) -> dict:
         """Get metadata about a setting from the settings file."""
-        try:
-            with open(self._settings_path) as file:
-                settings = yaml.load(file, Loader=yaml.FullLoader) or {}
-                # Search through all groups for the setting
-                for _group_name, group_settings in settings.items():
-                    if (
-                        isinstance(group_settings, dict)
-                        and name in group_settings
-                    ):
-                        # Return all metadata except 'value'
-                        return {
-                            k: v
-                            for k, v in group_settings[name].items()
-                            if k != "value"
-                        }
-                return {}
-        except FileNotFoundError:
+        with open(self._settings_path) as file:
+            settings = yaml.load(file, Loader=yaml.FullLoader) or {}
+            # Search through all groups for the setting
+            for _group_name, group_settings in settings.items():
+                if isinstance(group_settings, dict) and name in group_settings:
+                    # Return all metadata except 'value'
+                    return {
+                        k: v
+                        for k, v in group_settings[name].items()
+                        if k != "value"
+                    }
             return {}
 
     def get_all_settings(self) -> dict:
         """Get all current setting values."""
-        try:
-            with open(self._settings_path) as file:
-                settings = yaml.load(file, Loader=yaml.FullLoader) or {}
-                all_settings = {}
-                # Collect settings from all groups
-                for _group_name, group_settings in settings.items():
-                    if isinstance(group_settings, dict):
-                        for name, setting in group_settings.items():
-                            if (
-                                isinstance(setting, dict)
-                                and "value" in setting
-                            ):
-                                all_settings[name] = setting["value"]
-                return all_settings
-        except FileNotFoundError:
-            return {}
+        with open(self._settings_path) as file:
+            settings = yaml.load(file, Loader=yaml.FullLoader) or {}
+            all_settings = {}
+            # Collect settings from all groups
+            for _group_name, group_settings in settings.items():
+                if isinstance(group_settings, dict):
+                    for name, setting in group_settings.items():
+                        if isinstance(setting, dict) and "value" in setting:
+                            all_settings[name] = setting["value"]
+            return all_settings
 
     def get_settings_by_group(self) -> dict:
         """Get all settings organized by their groups."""
-        try:
-            with open(self._settings_path) as file:
-                settings = yaml.load(file, Loader=yaml.FullLoader) or {}
-                # The settings are already organized by groups in the new structure
-                return settings
-        except FileNotFoundError:
-            return {}
+        with open(self._settings_path) as file:
+            settings = yaml.load(file, Loader=yaml.FullLoader) or {}
+            # The settings are already organized by groups in the new structure
+            return settings
 
     def get_group_for_setting(self, name: str) -> str:
         """Get the group name for a specific setting."""
-        try:
-            with open(self._settings_path) as file:
-                settings = yaml.load(file, Loader=yaml.FullLoader) or {}
-                # Search through all groups for the setting
-                for group_name, group_settings in settings.items():
-                    if (
-                        isinstance(group_settings, dict)
-                        and name in group_settings
-                    ):
-                        return group_name
-                return "Unknown"
-        except FileNotFoundError:
+        with open(self._settings_path) as file:
+            settings = yaml.load(file, Loader=yaml.FullLoader) or {}
+            # Search through all groups for the setting
+            for group_name, group_settings in settings.items():
+                if isinstance(group_settings, dict) and name in group_settings:
+                    return group_name
             return "Unknown"
 
     def load_settings(self):
         """Load settings from the settings file."""
-        try:
-            with open(self._settings_path) as file:
-                saved_settings = yaml.load(file, Loader=yaml.FullLoader) or {}
-        except FileNotFoundError:
-            # If file doesn't exist, it will be created when settings are first saved
-            saved_settings = {}
+        with open(self._settings_path) as file:
+            saved_settings = yaml.load(file, Loader=yaml.FullLoader) or {}
 
         # Load all settings from all groups
         for _group_name, group_settings in saved_settings.items():
@@ -234,13 +198,8 @@ class Settings:
 
     def save_settings(self):
         """Save the current settings to the settings file."""
-        try:
-            with open(self._settings_path) as file:
-                current_settings = (
-                    yaml.load(file, Loader=yaml.FullLoader) or {}
-                )
-        except FileNotFoundError:
-            current_settings = {}
+        with open(self._settings_path) as file:
+            current_settings = yaml.load(file, Loader=yaml.FullLoader) or {}
 
         # Update values while preserving the group structure
         for attr_name in dir(self):
