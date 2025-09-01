@@ -290,23 +290,3 @@ def get_settings() -> Settings:
             str(Path(__file__).parent / "ndev_settings.yaml")
         )
     return _settings_instance
-
-
-def register_setting(
-    name: str,
-    default_value,
-    description: str = "",
-    group: str = "Unknown",
-    **metadata,
-):
-    """
-    Convenience function for other libraries to register settings.
-
-    Example usage:
-    from ndev_settings import register_setting
-    register_setting("MY_PLUGIN_ENABLED", True, "Enable my plugin features", group="My Plugin")
-    """
-    settings = get_settings()
-    settings.register_setting(
-        name, default_value, description, group, **metadata
-    )
