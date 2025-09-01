@@ -25,7 +25,9 @@ class Settings:
         # Load current settings to preserve existing structure
         try:
             with open(self._settings_path) as file:
-                current_settings = yaml.safe_load(file) or {}
+                current_settings = (
+                    yaml.load(file, Loader=yaml.FullLoader) or {}
+                )
         except FileNotFoundError:
             current_settings = {}
 
@@ -60,9 +62,6 @@ class Settings:
             and "value" in current_settings[group][name]
         ):
             value = current_settings[group][name]["value"]
-            # Handle type conversion for tuples
-            if isinstance(default_value, tuple) and isinstance(value, list):
-                value = tuple(value)
             setattr(self, name, value)
         else:
             setattr(
@@ -83,7 +82,7 @@ class Settings:
         """
         try:
             with open(self._settings_path) as file:
-                settings_data = yaml.safe_load(file) or {}
+                settings_data = yaml.load(file, Loader=yaml.FullLoader) or {}
         except FileNotFoundError:
             return
 
@@ -97,11 +96,6 @@ class Settings:
                     setting_data = group_settings[setting_name]
                     if "default" in setting_data:
                         default_value = setting_data["default"]
-                        # Handle tuple conversion for canvas_size
-                        if setting_name == "canvas_size" and isinstance(
-                            default_value, list
-                        ):
-                            default_value = tuple(default_value)
                         setattr(self, setting_name, default_value)
                         setting_data["value"] = setting_data["default"]
                         self._save_settings_file(settings_data)
@@ -116,11 +110,6 @@ class Settings:
                             and "default" in setting_data
                         ):
                             default_value = setting_data["default"]
-                            # Handle tuple conversion for canvas_size
-                            if name == "canvas_size" and isinstance(
-                                default_value, list
-                            ):
-                                default_value = tuple(default_value)
                             setattr(self, name, default_value)
                             setting_data["value"] = setting_data["default"]
             self._save_settings_file(settings_data)
@@ -129,7 +118,7 @@ class Settings:
         """Get the default value for a setting."""
         try:
             with open(self._settings_path) as file:
-                settings_data = yaml.safe_load(file) or {}
+                settings_data = yaml.load(file, Loader=yaml.FullLoader) or {}
                 # Search through all groups for the setting
                 for _group_name, group_settings in settings_data.items():
                     if (
@@ -139,11 +128,6 @@ class Settings:
                         setting_data = group_settings[setting_name]
                         if "default" in setting_data:
                             default = setting_data["default"]
-                            # Handle tuple conversion for canvas_size
-                            if setting_name == "canvas_size" and isinstance(
-                                default, list
-                            ):
-                                return tuple(default)
                             return default
                 return None
         except FileNotFoundError:
@@ -153,7 +137,7 @@ class Settings:
         """Get metadata about a setting from the settings file."""
         try:
             with open(self._settings_path) as file:
-                settings = yaml.safe_load(file) or {}
+                settings = yaml.load(file, Loader=yaml.FullLoader) or {}
                 # Search through all groups for the setting
                 for _group_name, group_settings in settings.items():
                     if (
@@ -174,7 +158,7 @@ class Settings:
         """Get all current setting values."""
         try:
             with open(self._settings_path) as file:
-                settings = yaml.safe_load(file) or {}
+                settings = yaml.load(file, Loader=yaml.FullLoader) or {}
                 all_settings = {}
                 # Collect settings from all groups
                 for _group_name, group_settings in settings.items():
@@ -193,7 +177,7 @@ class Settings:
         """Get all settings organized by their groups."""
         try:
             with open(self._settings_path) as file:
-                settings = yaml.safe_load(file) or {}
+                settings = yaml.load(file, Loader=yaml.FullLoader) or {}
                 # The settings are already organized by groups in the new structure
                 return settings
         except FileNotFoundError:
@@ -203,7 +187,7 @@ class Settings:
         """Get the group name for a specific setting."""
         try:
             with open(self._settings_path) as file:
-                settings = yaml.safe_load(file) or {}
+                settings = yaml.load(file, Loader=yaml.FullLoader) or {}
                 # Search through all groups for the setting
                 for group_name, group_settings in settings.items():
                     if (
@@ -219,7 +203,7 @@ class Settings:
         """Load settings from the settings file."""
         try:
             with open(self._settings_path) as file:
-                saved_settings = yaml.safe_load(file) or {}
+                saved_settings = yaml.load(file, Loader=yaml.FullLoader) or {}
         except FileNotFoundError:
             # If file doesn't exist, it will be created when settings are first saved
             saved_settings = {}
@@ -233,10 +217,6 @@ class Settings:
                         and "value" in setting_data
                     ):
                         value = setting_data["value"]
-                        # Handle type conversion for tuples (YAML converts tuples to lists)
-                        if isinstance(value, list) and name == "canvas_size":
-                            # Convert canvas_size back to tuple for consistency
-                            value = tuple(value)
                         setattr(self, name, value)
 
     def __setattr__(self, name, value):
@@ -256,7 +236,9 @@ class Settings:
         """Save the current settings to the settings file."""
         try:
             with open(self._settings_path) as file:
-                current_settings = yaml.safe_load(file) or {}
+                current_settings = (
+                    yaml.load(file, Loader=yaml.FullLoader) or {}
+                )
         except FileNotFoundError:
             current_settings = {}
 
@@ -294,7 +276,7 @@ class Settings:
     def _save_settings_file(self, settings_data):
         """Helper to save settings data to file."""
         with open(self._settings_path, "w") as file:
-            yaml.safe_dump(settings_data, file, default_flow_style=False)
+            yaml.dump(settings_data, file, default_flow_style=False)
 
 
 _settings_instance = None

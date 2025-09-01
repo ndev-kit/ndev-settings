@@ -6,13 +6,13 @@ Canvas:
     min: 0.1
     value: 1.0
   canvas_size:
-    default:
-    - 1024
-    - 1024
+    default: !!python/tuple
+      - 1024
+      - 1024
     description: Height x width of the canvas when exporting a screenshot
-    value:
-    - 1024
-    - 1024
+    value: !!python/tuple
+      - 1024
+      - 1024
   override_canvas_size:
     default: false
     description: Whether to override the canvas size when exporting canvas screenshot
