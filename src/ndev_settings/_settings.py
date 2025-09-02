@@ -17,49 +17,6 @@ class Settings:
         self._load_all_settings()  # Load both local and external settings
         self._loading = False
 
-    def register_setting(
-        self,
-        name: str,
-        default_value,
-        description: str = "",
-        group: str = "Unknown",
-        **metadata,
-    ):
-        """Register a new setting (for use by other libraries)."""
-        # Load current settings
-        with open(self._settings_path) as file:
-            current_settings = yaml.load(file, Loader=yaml.FullLoader) or {}
-
-        # Create group if it doesn't exist
-        if group not in current_settings:
-            current_settings[group] = {}
-
-        setting_definition = {
-            "value": default_value,
-            "default": default_value,
-            "description": description,
-            **metadata,
-        }
-
-        # Create the new setting if it doesn't already exist
-        if name not in current_settings[group]:
-            current_settings[group][name] = setting_definition
-        else:
-            # Preserve existing setting value but update metadata
-            existing_value = current_settings[group][name].get("value", default_value)
-            current_settings[group][name] = {
-                **setting_definition,
-                "value": existing_value,
-            }
-
-        # Set the attribute value in the nested group object
-        if not hasattr(self, group):
-            setattr(self, group, SettingsGroup())
-        setattr(getattr(self, group), name, current_settings[group][name]["value"])
-
-        if not self._loading:
-            self._save_settings_file(current_settings)
-
     def reset_to_default(self, setting_name: str | None = None, group: str | None = None):
         """Reset a setting (or all settings) to their default values."""
         with open(self._settings_path) as file:
