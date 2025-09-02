@@ -1,5 +1,6 @@
 from ndev_settings import get_settings
 
+
 def test_get_settings_singleton():
     """Test the singleton behavior of get_settings."""
     # Get two instances of settings

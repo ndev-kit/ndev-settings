@@ -1,5 +1,5 @@
-from ndev_settings._settings import Settings
 from ndev_settings import get_settings
+from ndev_settings._settings import Settings
 
 
 def test_settings_loading_and_saving(settings_file):
