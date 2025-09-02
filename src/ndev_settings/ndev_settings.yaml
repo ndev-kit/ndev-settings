@@ -7,17 +7,16 @@ Canvas:
     value: 1.0
   canvas_size:
     default: !!python/tuple
-      - 1024
-      - 1024
+    - 1024
+    - 1024
     description: Height x width of the canvas when exporting a screenshot
     value: !!python/tuple
-      - 1024
-      - 1024
+    - 1024
+    - 1024
   override_canvas_size:
     default: false
     description: Whether to override the canvas size when exporting canvas screenshot
     value: false
-
 Reader:
   clear_layers_on_new_scene:
     default: false
@@ -26,10 +25,10 @@ Reader:
   preferred_reader:
     default: bioio-ome-tiff
     description: Preferred reader to use when opening images
-    value: bioio-ome-tiff
     dynamic_choices:
-      provider: bioio.readers
       fallback_message: No readers found
+      provider: bioio.readers
+    value: bioio-ome-tiff
   scene_handling:
     choices:
     - Open Scene Widget

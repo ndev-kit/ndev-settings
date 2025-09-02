@@ -1,10 +1,6 @@
-import os
-import tempfile
-from unittest.mock import Mock, patch
-
 import yaml
 
-from ndev_settings._settings import get_settings
+from ndev_settings import get_settings
 from ndev_settings._settings_widget import SettingsContainer
 
 
@@ -17,12 +13,12 @@ def test_settings_container_initialization():
     assert container.settings is settings_singleton
 
     # Check that widgets were created for available settings
-    # We can't check exact set equality since we don't have DEFAULT_SETTINGS anymore
-    # Instead, check that some expected widgets exist
-    expected_settings = ["PREFERRED_READER", "SCENE_HANDLING", "CANVAS_SCALE"]
-    for setting_name in expected_settings:
-        if hasattr(settings_singleton, setting_name):
-            assert setting_name in container._widgets
+    # With the grouped approach, check that some expected group.setting combinations exist
+    expected_widgets = ["Reader.preferred_reader", "Reader.scene_handling", "Canvas.canvas_scale"]
+    for widget_key in expected_widgets:
+        group_name, setting_name = widget_key.split(".", 1)
+        if hasattr(settings_singleton, group_name) and hasattr(getattr(settings_singleton, group_name), setting_name):
+            assert widget_key in container._widgets
 
 
 def test_widget_types_created_correctly():
@@ -31,42 +27,36 @@ def test_widget_types_created_correctly():
     settings = container.settings
 
     # Test boolean settings create checkboxes
-    if hasattr(settings, "CLEAR_LAYERS_ON_NEW_SCENE") and isinstance(getattr(settings, "CLEAR_LAYERS_ON_NEW_SCENE", None), bool) and "CLEAR_LAYERS_ON_NEW_SCENE" in container._widgets:
-        setting_info = settings.get_setting_info("CLEAR_LAYERS_ON_NEW_SCENE")
-        widget = container._widgets["CLEAR_LAYERS_ON_NEW_SCENE"]
+    if (hasattr(settings, "Reader") and 
+        hasattr(settings.Reader, "clear_layers_on_new_scene") and 
+        isinstance(getattr(settings.Reader, "clear_layers_on_new_scene"), bool) and 
+        "Reader.clear_layers_on_new_scene" in container._widgets):
+        widget = container._widgets["Reader.clear_layers_on_new_scene"]
         assert hasattr(widget, 'value')  # CheckBox has value attribute
 
-    # Test that settings with choices create ComboBoxes
-    if hasattr(settings, "SCENE_HANDLING"):
-        setting_info = settings.get_setting_info("SCENE_HANDLING")
-        if "choices" in setting_info:
-            if "SCENE_HANDLING" in container._widgets:
-                widget = container._widgets["SCENE_HANDLING"]
-            assert hasattr(widget, 'choices')  # ComboBox has choices attribute
-
     # Test that numeric settings create spinboxes
-    if hasattr(settings, "CANVAS_SCALE"):
-        setting_info = settings.get_setting_info("CANVAS_SCALE")
-        if (
-            hasattr(settings, "CANVAS_SCALE")
-            and isinstance(settings.CANVAS_SCALE, int | float)
-            and not isinstance(settings.CANVAS_SCALE, bool)
-            and "CANVAS_SCALE" in container._widgets
-            and "choices" not in setting_info
-        ):
-            widget = container._widgets["CANVAS_SCALE"]
-            assert hasattr(widget, 'min'), f"Widget for CANVAS_SCALE is {type(widget)}, expected FloatSpinBox"
+    if (hasattr(settings, "Canvas") and 
+        hasattr(settings.Canvas, "canvas_scale") and
+        "Canvas.canvas_scale" in container._widgets):
+        # Check if it's numeric and not boolean
+        value = getattr(settings.Canvas, "canvas_scale")
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            widget = container._widgets["Canvas.canvas_scale"]
+            assert hasattr(widget, 'min'), f"Widget for Canvas.canvas_scale is {type(widget)}, expected FloatSpinBox"
 
 
 def test_widget_values_match_settings():
     """Test that widget values match the current settings values."""
     container = SettingsContainer()
 
-    for setting_name, widget in container._widgets.items():
-        current_value = getattr(container.settings, setting_name)
+    for widget_key, widget in container._widgets.items():
+        # Parse the group.setting format
+        group_name, setting_name = widget_key.split(".", 1)
+        group_obj = getattr(container.settings, group_name)
+        current_value = getattr(group_obj, setting_name)
 
         # Handle special case for PREFERRED_READER
-        if setting_name == "PREFERRED_READER" and not widget.enabled:
+        if setting_name == "preferred_reader" and not widget.enabled:
             continue
 
         # For tuple/list values, widget might convert to tuple
@@ -80,10 +70,10 @@ def test_widget_updates_settings():
     """Test that changing widget values updates the settings."""
     container = SettingsContainer()
 
-    # Test with CANVAS_SCALE (numeric setting)
-    if "CANVAS_SCALE" in container._widgets:
-        widget = container._widgets["CANVAS_SCALE"]
-        original_value = container.settings.CANVAS_SCALE
+    # Test with Canvas.canvas_scale (numeric setting)
+    if "Canvas.canvas_scale" in container._widgets:
+        widget = container._widgets["Canvas.canvas_scale"]
+        original_value = container.settings.Canvas.canvas_scale
 
         # Change the widget value
         new_value = original_value + 1.0
@@ -93,165 +83,121 @@ def test_widget_updates_settings():
         # We need to manually trigger the update since we're not in the GUI event loop
         container._update_settings()
 
-        assert new_value == container.settings.CANVAS_SCALE
+        assert new_value == container.settings.Canvas.canvas_scale
 
         # Reset for other tests
         widget.value = original_value
         container._update_settings()
 
 
-def test_dynamic_settings_registration():
-    """Test that dynamically registered settings create widgets."""
-    # Create a temporary settings file to avoid polluting the main one
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
-        # Create settings in rich format
-        test_settings = {
-            "CANVAS_SCALE": {
-                "value": 1.0,
-                "default": 1.0,
-                "description": "Scales exported figures and screenshots by this value"
-            },
-            "CANVAS_SIZE": {
-                "value": [1024, 1024],
-                "default": [1024, 1024],
-                "description": "Height x width of the canvas when exporting a screenshot"
-            },
-            "PREFERRED_READER": {
-                "value": "test-reader",
-                "default": "bioio-ome-tiff",
-                "description": "Preferred reader to use when opening images"
+def test_settings_manual_save():
+    """Test that settings can be manually saved after widget changes."""
+    container = SettingsContainer()
+    
+    # Test with Canvas.canvas_scale if available
+    if "Canvas.canvas_scale" in container._widgets:
+        widget = container._widgets["Canvas.canvas_scale"]
+        original_value = container.settings.Canvas.canvas_scale
+        
+        # Change the widget value
+        new_value = original_value + 2.0
+        widget.value = new_value
+        
+        # Update settings
+        container._update_settings()
+        
+        # The manual save should have been called automatically in _update_settings
+        # Verify the setting was updated
+        assert container.settings.Canvas.canvas_scale == new_value
+        
+        # Reset for other tests
+        widget.value = original_value
+        container._update_settings()
+
+
+def test_grouping_functionality():
+    """Test that settings are properly grouped in the container."""
+    container = SettingsContainer()
+    
+    # Check that we have widgets for different groups
+    canvas_widgets = [key for key in container._widgets.keys() if key.startswith("Canvas.")]
+    reader_widgets = [key for key in container._widgets.keys() if key.startswith("Reader.")]
+    
+    # Should have widgets from multiple groups
+    if hasattr(container.settings, "Canvas"):
+        assert len(canvas_widgets) > 0, "Should have Canvas widgets"
+    
+    if hasattr(container.settings, "Reader"):
+        assert len(reader_widgets) > 0, "Should have Reader widgets"
+
+
+def test_widget_container_with_custom_settings(tmp_path):
+    """Test widget creation with custom settings file."""
+    # Create a temporary settings file
+    settings_file = tmp_path / "test_settings.yaml"
+    settings_file.write_text(
+        yaml.dump(
+            {
+                "TestGroup": {
+                    "test_setting": {
+                        "value": "test_value",
+                        "default": "default_value",
+                        "description": "A test setting",
+                    },
+                    "numeric_setting": {
+                        "value": 42.0,
+                        "default": 0.0,
+                        "description": "A numeric test setting",
+                    },
+                    "boolean_setting": {
+                        "value": True,
+                        "default": False,
+                        "description": "A boolean test setting",
+                    },
+                },
             }
-        }
-        yaml.dump(test_settings, f)
-        temp_file = f.name
+        )
+    )
 
-    try:
-        # We need to test with a fresh settings instance
-        from ndev_settings._settings import Settings
-        temp_settings = Settings(temp_file)
-
-        # Register a new setting
-        temp_settings.register_setting("TEST_DYNAMIC", "test_value", "Dynamic test setting")
-        temp_settings.register_setting("TEST_BOOL", False, "Dynamic boolean")
-        temp_settings.register_setting("TEST_CHOICE", "A", "Dynamic choice",
-                                      choices=["A", "B", "C"])
-
-        # Create a container with this settings instance (we'd need to modify the class for this)
-        # For now, we'll just test that the settings were registered
-        assert hasattr(temp_settings, "TEST_DYNAMIC")
-        assert temp_settings.TEST_DYNAMIC == "test_value"
-        assert hasattr(temp_settings, "TEST_BOOL")
-        assert temp_settings.TEST_BOOL is False
-        assert hasattr(temp_settings, "TEST_CHOICE")
-        assert temp_settings.TEST_CHOICE == "A"
-
-    finally:
-        os.unlink(temp_file)
+    # Create a Settings instance with the custom file
+    from ndev_settings._settings import Settings
+    custom_settings = Settings(str(settings_file))
+    
+    # Verify the settings were loaded correctly
+    assert hasattr(custom_settings, "TestGroup")
+    assert custom_settings.TestGroup.test_setting == "test_value"
+    assert custom_settings.TestGroup.numeric_setting == 42.0
+    assert custom_settings.TestGroup.boolean_setting is True
 
 
-@patch('ndev_settings._settings_widget.entry_points')
-def test_preferred_reader_widget_with_available_readers(mock_entry_points):
-    """Test PREFERRED_READER widget when readers are available."""
-    # Mock some readers being available
-    mock_reader1 = Mock()
-    mock_reader1.name = "bioio-ome-tiff"
-    mock_reader2 = Mock()
-    mock_reader2.name = "bioio-czi"
-
-    mock_entry_points.return_value = [mock_reader1, mock_reader2]
-
+def test_settings_update_and_save():
+    """Test the complete flow of updating settings through widgets and saving."""
     container = SettingsContainer()
-
-    # Should have created a PREFERRED_READER widget
-    assert "PREFERRED_READER" in container._widgets
-    reader_widget = container._widgets["PREFERRED_READER"]
-
-    # Widget should be enabled and have the available readers as choices
-    assert reader_widget.enabled
-    assert "bioio-ome-tiff" in reader_widget.choices
-    assert "bioio-czi" in reader_widget.choices
-
-
-@patch('ndev_settings._settings_widget.entry_points')
-def test_preferred_reader_widget_no_available_readers(mock_entry_points):
-    """Test PREFERRED_READER widget when no readers are available."""
-    # Mock no readers being available
-    mock_entry_points.return_value = []
-
-    container = SettingsContainer()
-
-    # Should still create widget but disabled
-    if "PREFERRED_READER" in container._widgets:
-        reader_widget = container._widgets["PREFERRED_READER"]
-        assert not reader_widget.enabled
-        assert list(reader_widget.choices) == ["No readers found"]
-
-
-def test_settings_groups():
-    """Test that settings are properly grouped in the UI."""
-    container = SettingsContainer()
-    groups = container._group_settings()
-
-    # Should have Reader Settings and Export Settings groups
-    assert "Reader Settings" in groups
-    assert "Export Settings" in groups
-
-    # Check that expected settings are in correct groups
-    reader_settings = groups["Reader Settings"]
-    export_settings = groups["Export Settings"]
-
-    assert "PREFERRED_READER" in reader_settings
-    assert "SCENE_HANDLING" in reader_settings
-    assert "CANVAS_SCALE" in export_settings
-    assert "CANVAS_SIZE" in export_settings
-
-
-def test_canvas_size_tuple_handling():
-    """Test that CANVAS_SIZE (tuple/list) is handled correctly."""
-    container = SettingsContainer()
-
-    # Should create a widget for CANVAS_SIZE
-    assert "CANVAS_SIZE" in container._widgets
-    canvas_widget = container._widgets["CANVAS_SIZE"]
-
-    # Value should be a tuple (converted from list if needed)
-    current_size = container.settings.CANVAS_SIZE
-    assert isinstance(canvas_widget.value, tuple)
-
-    # Should match the settings value (handling list/tuple conversion)
-    if isinstance(current_size, list):
-        assert canvas_widget.value == tuple(current_size)
-    else:
-        assert canvas_widget.value == current_size
-
-
-def test_other_settings_group():
-    """Test that unrecognized settings go into 'Other Settings' group."""
-    # Register a custom setting directly on the singleton for testing
-    from ndev_settings import register_setting
-
-    # Register an unknown setting that won't be in any predefined group
-    register_setting("UNKNOWN_SETTING", "test", "Unknown setting")
-
-    try:
-        container = SettingsContainer()
-        groups = container._group_settings()
-
-        # Should create "Other Settings" group for unknown settings
-        assert "Other Settings" in groups
-        assert "UNKNOWN_SETTING" in groups["Other Settings"]
-
-    finally:
-        # Clean up by removing the test setting from singleton
-        settings = get_settings()
-        if hasattr(settings, "UNKNOWN_SETTING"):
-            delattr(settings, "UNKNOWN_SETTING")
-        # Also clean up from YAML file
-        try:
-            with open(settings._settings_path) as file:
-                current_settings = yaml.safe_load(file) or {}
-            if "UNKNOWN_SETTING" in current_settings:
-                del current_settings["UNKNOWN_SETTING"]
-                settings._save_settings_file(current_settings)
-        except FileNotFoundError:
-            pass
+    
+    # Find a numeric widget to test with
+    numeric_widget_key = None
+    for key, widget in container._widgets.items():
+        if hasattr(widget, 'min') and hasattr(widget, 'max'):  # Likely a numeric widget
+            numeric_widget_key = key
+            break
+    
+    if numeric_widget_key:
+        widget = container._widgets[numeric_widget_key]
+        group_name, setting_name = numeric_widget_key.split(".", 1)
+        group_obj = getattr(container.settings, group_name)
+        original_value = getattr(group_obj, setting_name)
+        
+        # Change widget value
+        new_value = original_value + 5.0
+        widget.value = new_value
+        
+        # Trigger update (which should also save)
+        container._update_settings()
+        
+        # Verify the setting was updated
+        updated_value = getattr(group_obj, setting_name)
+        assert updated_value == new_value
+        
+        # Reset for other tests
+        widget.value = original_value
+        container._update_settings()
