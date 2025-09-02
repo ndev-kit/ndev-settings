@@ -44,7 +44,66 @@ To install latest development version :
 pip install git+https://github.com/ndev-kit/ndev-settings.git
 ```
 
+## Use with external libraries
 
+External libraries can provide their settings in YAML format with the same structure as your main `ndev_settings.yaml`.
+
+**Step 1**: Create a YAML file in the external library (e.g., `ndevio_settings.yaml`):
+
+```yaml
+Reader:
+  preferred_reader:
+    default: bioio-ome-tiff
+    description: Preferred reader to use when opening images
+    value: bioio-ome-tiff
+    dynamic_choices:
+      provider: "bioio.readers"
+      fallback_message: "No bioio readers available"
+  auto_detect_reader:
+    default: true
+    description: Automatically detect the best reader for each file type
+    value: true
+
+Export:
+  compression_level:
+    default: medium
+    description: Default compression level for lossy image formats
+    value: medium
+    choices: [none, low, medium, high, maximum]
+```
+
+**Step 2**: Create a function to provide the YAML path:
+
+```python
+# In ./src/ndevio/ndev_settings.py
+from pathlib import Path
+
+def get_ndevio_settings_yaml():
+    """Return the path to ndevio's settings YAML file."""
+    return str(Path(__file__).parent / "ndevio_settings.yaml")
+```
+
+**Step 3**: Register the entry point in `pyproject.toml`:
+
+```toml
+[project.entry-points."ndev_settings.yaml_providers"]
+bioio = "ndevio.ndev_settings:get_ndevio_settings_yaml"
+```
+
+## Usage Example
+
+```python
+from ndev_settings import get_settings
+
+settings = get_settings()
+
+# Access settings from main file
+print(settings.Canvas.canvas_scale)
+
+# Access settings from external libraries (if installed)
+print(settings.Reader.preferred_reader)  # From ndevio
+print(settings.Export.compression_level)  # From ndevio
+```
 
 ## Contributing
 

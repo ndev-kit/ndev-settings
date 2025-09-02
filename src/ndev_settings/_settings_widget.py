@@ -33,11 +33,10 @@ class SettingsContainer(Container):
         choices = self.settings._get_dynamic_choices(provider)
         return choices if choices else [fallback_message], fallback_message
 
-    def _create_widget_for_setting(
-        self, name: str, info: dict
-    ) -> Widget | None:
+
+    def _create_widget_for_setting(self, group_obj, name: str, info: dict) -> Widget | None:
         """Create appropriate widget for a setting based on its metadata."""
-        default_value = getattr(self.settings, name)
+        default_value = getattr(group_obj, name)
         description = info.get("description", "")
 
         # Handle dynamic choices first
@@ -52,7 +51,6 @@ class SettingsContainer(Container):
             if not choices_available:
                 tooltip += f"\n{fallback_message}"
             elif "dynamic_choices" in info:
-                # Add note about dynamic nature
                 tooltip += "\nIf the selection is not available, it will attempt to fallback to the next available working option."
 
             return ComboBox(
@@ -86,25 +84,19 @@ class SettingsContainer(Container):
                 step=info.get("step", 1.0),
                 tooltip=description,
             )
-        elif isinstance(default_value, tuple | list):
-            # Convert list to tuple if needed for consistency
-            tuple_value = (
-                tuple(default_value)
-                if isinstance(default_value, list)
-                else default_value
-            )
+        elif isinstance(default_value, tuple):
             return TupleEdit(
                 label=name.replace("_", " ").title(),
-                value=tuple_value,
+                value=default_value,
                 tooltip=description,
             )
 
-        # Fallback for other types - could be extended
         return None
 
     def _group_settings(self) -> dict:
         """Group settings by their defined groups from the YAML file."""
         return self.settings._settings_by_group
+
 
     def _init_widgets(self):
         """Initialize all widgets dynamically based on registered settings."""
@@ -113,16 +105,15 @@ class SettingsContainer(Container):
 
         for group_name, settings_dict in groups.items():
             group_widgets = []
+            group_obj = getattr(self.settings, group_name)  # Assume group always exists
 
             for setting_name, setting_data in settings_dict.items():
-                if hasattr(self.settings, setting_name):
-                    widget = self._create_widget_for_setting(
-                        setting_name, setting_data
-                    )
-
-                    if widget:
-                        self._widgets[setting_name] = widget
-                        group_widgets.append(widget)
+                widget = self._create_widget_for_setting(
+                    group_obj, setting_name, setting_data
+                )
+                if widget:
+                    self._widgets[f"{group_name}.{setting_name}"] = widget
+                    group_widgets.append(widget)
 
             if group_widgets:
                 container = GroupBoxContainer(
@@ -140,12 +131,14 @@ class SettingsContainer(Container):
         for widget in self._widgets.values():
             widget.changed.connect(self._update_settings)
 
+
     def _update_settings(self):
         """Update settings when any widget value changes."""
-        for setting_name, widget in self._widgets.items():
-            # Skip disabled widgets (usually means no valid choices available)
+        for key, widget in self._widgets.items():
+            # key is now "Group.Setting"
+            group_name, setting_name = key.split(".", 1)
+            group_obj = getattr(self.settings, group_name)  # Assume group always exists
+
             if hasattr(widget, "enabled") and not widget.enabled:
                 continue
-
-            # Auto-save happens automatically via __setattr__
-            setattr(self.settings, setting_name, widget.value)
+            setattr(group_obj, setting_name, widget.value)
