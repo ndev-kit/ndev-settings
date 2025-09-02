@@ -136,7 +136,7 @@ class Settings:
                     value = getattr(group_obj, setting_name)
                     # Try to preserve metadata if possible
                     if (
-                        hasattr(self, "_settings_by_group")
+                        hasattr(self, "_grouped_settings")
                         and attr_name in self._grouped_settings
                         and setting_name in self._grouped_settings[attr_name]
                     ):

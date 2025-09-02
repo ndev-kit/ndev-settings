@@ -8,7 +8,7 @@ from magicgui.widgets import (
     Widget,
 )
 
-from ndev_settings._settings import get_settings
+from ndev_settings import get_settings
 
 
 class SettingsContainer(Container):
@@ -93,14 +93,9 @@ class SettingsContainer(Container):
 
         return None
 
-    def _group_settings(self) -> dict:
-        """Group settings by their defined groups from the YAML file."""
-        return self.settings._settings_by_group
-
-
     def _init_widgets(self):
         """Initialize all widgets dynamically based on registered settings."""
-        groups = self._group_settings()
+        groups = self.settings._grouped_settings
         containers = []
 
         for group_name, settings_dict in groups.items():
