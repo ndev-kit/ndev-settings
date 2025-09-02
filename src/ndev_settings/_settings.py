@@ -1,3 +1,4 @@
+from importlib.metadata import entry_points
 from pathlib import Path
 
 import yaml
@@ -12,6 +13,16 @@ class Settings:
         self._loading = True  # Flag to prevent auto-save during initialization
         self.load_settings()
         self._loading = False  # Enable auto-save after initialization
+
+    def get_dynamic_choices(self, provider_key: str) -> list:
+        """Get dynamic choices from entry points."""
+        try:
+            # Check if it's an entry point group
+            entries = entry_points(group=provider_key)
+            return [entry.name for entry in entries]
+        except (ImportError, AttributeError, ValueError):
+            # Handle cases where entry points don't exist or can't be loaded
+            return []
 
     def register_setting(
         self,
@@ -168,7 +179,7 @@ class Settings:
             return "Unknown"
 
     def load_settings(self):
-        """Load settings from the settings file."""
+        """Load settings from the settings file and discover external settings."""
         with open(self._settings_path) as file:
             saved_settings = yaml.load(file, Loader=yaml.FullLoader) or {}
 
@@ -182,6 +193,32 @@ class Settings:
                     ):
                         value = setting_data["value"]
                         setattr(self, name, value)
+
+        # Discover and load external settings via entry points
+        self._load_external_settings()
+
+    def _load_external_settings(self):
+        """Load settings registered by external libraries via entry points."""
+        try:
+            # Look for settings providers in entry points
+            for entry_point in entry_points(group="ndev_settings.providers"):
+                try:
+                    provider_func = entry_point.load()
+                    # Provider function should call register_setting for each setting
+                    provider_func(self)
+                except (
+                    ImportError,
+                    AttributeError,
+                    TypeError,
+                    ValueError,
+                ) as e:
+                    # Log but don't fail - allows graceful degradation
+                    print(
+                        f"Warning: Failed to load settings from {entry_point.name}: {e}"
+                    )
+        except (ImportError, AttributeError):
+            # Entry points might not be available in all environments
+            pass
 
     def __setattr__(self, name, value):
         """Override setattr to auto-save when settings are changed."""

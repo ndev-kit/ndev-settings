@@ -1,5 +1,3 @@
-from importlib.metadata import entry_points
-
 from magicclass.widgets import GroupBoxContainer
 from magicgui.widgets import (
     CheckBox,
@@ -21,12 +19,19 @@ class SettingsContainer(Container):
         self._init_widgets()
         self._connect_events()
 
-    def _get_available_readers(self):
-        """Get available bioio readers."""
-        readers = [
-            reader.name for reader in entry_points(group="bioio.readers")
-        ]
-        return readers if readers else ["No readers found"]
+    def _get_dynamic_choices(self, setting_info: dict) -> tuple[list, str]:
+        """Get dynamic choices for a setting if configured."""
+        dynamic_config = setting_info.get("dynamic_choices")
+        if not dynamic_config:
+            return [], ""
+
+        provider = dynamic_config.get("provider", "")
+        fallback_message = dynamic_config.get(
+            "fallback_message", "No choices available"
+        )
+
+        choices = self.settings.get_dynamic_choices(provider)
+        return choices if choices else [fallback_message], fallback_message
 
     def _create_widget_for_setting(
         self, name: str, info: dict
@@ -35,25 +40,30 @@ class SettingsContainer(Container):
         default_value = getattr(self.settings, name)
         description = info.get("description", "")
 
-        # Handle special cases first
-        if name == "preferred_reader":
-            available_readers = self._get_available_readers()
-            readers_available = available_readers != ["No readers found"]
+        # Handle dynamic choices first
+        if "dynamic_choices" in info:
+            choices, fallback_message = self._get_dynamic_choices(info)
+            choices_available = choices != [fallback_message]
             current_value = (
-                default_value
-                if default_value in available_readers
-                else available_readers[0]
+                default_value if default_value in choices else choices[0]
             )
+
+            tooltip = description
+            if not choices_available:
+                tooltip += f"\n{fallback_message}"
+            elif "dynamic_choices" in info:
+                # Add note about dynamic nature
+                tooltip += "\nIf the selection is not available, it will attempt to fallback to the next available working option."
 
             return ComboBox(
-                label="Preferred Reader",
+                label=name.replace("_", " ").title(),
                 value=current_value,
-                choices=available_readers,
-                tooltip=f"{description}\nIf the reader is not available, it will attempt to fallback to the next available working reader.",
-                enabled=readers_available,
+                choices=choices,
+                tooltip=tooltip,
+                enabled=choices_available,
             )
 
-        # Handle by type and metadata
+        # Handle static choices
         if "choices" in info:
             return ComboBox(
                 label=name.replace("_", " ").title(),
@@ -133,8 +143,8 @@ class SettingsContainer(Container):
     def _update_settings(self):
         """Update settings when any widget value changes."""
         for setting_name, widget in self._widgets.items():
-            # Handle special case for preferred_reader availability
-            if setting_name == "preferred_reader" and not widget.enabled:
+            # Skip disabled widgets (usually means no valid choices available)
+            if hasattr(widget, "enabled") and not widget.enabled:
                 continue
 
             # Auto-save happens automatically via __setattr__
