@@ -104,7 +104,7 @@ class SettingsContainer(Container):
 
     def _group_settings(self) -> dict:
         """Group settings by their defined groups from the YAML file."""
-        return self.settings.get_settings_by_group()
+        return self.settings._settings_by_group
 
     def _init_widgets(self):
         """Initialize all widgets dynamically based on registered settings."""

@@ -1,18 +1,20 @@
 from importlib.metadata import entry_points
 from pathlib import Path
+from types import SimpleNamespace
 
 import yaml
 
 
-class Settings:
-    """A class to manage settings for the nDev plugin."""
+class SettingsGroup(SimpleNamespace):
+    pass
 
+class Settings:
+    """A class to manage settings for the nDev plugin, with nested group objects."""
     def __init__(self, settings_file: str):
-        """Initialize the settings manager with a file path."""
         self._settings_path = settings_file
-        self._loading = True  # Flag to prevent auto-save during initialization
+        self._loading = True
         self._load_settings()
-        self._loading = False  # Enable auto-save after initialization
+        self._loading = False
 
     def register_setting(
         self,
@@ -23,52 +25,33 @@ class Settings:
         **metadata,
     ):
         """Register a new setting (for use by other libraries)."""
-        # Load current settings to preserve existing structure
         with open(self._settings_path) as file:
             current_settings = yaml.load(file, Loader=yaml.FullLoader) or {}
-
-        # Ensure the group exists
         if group not in current_settings:
             current_settings[group] = {}
-
-        # Create the setting definition
         setting_definition = {
             "value": default_value,
             "default": default_value,
             "description": description,
             **metadata,
         }
-
-        # If setting doesn't exist in the group, add it with default value
         if name not in current_settings[group]:
             current_settings[group][name] = setting_definition
         else:
-            # Setting exists, preserve the current value but update metadata
-            existing_value = current_settings[group][name].get(
-                "value", default_value
-            )
+            existing_value = current_settings[group][name].get("value", default_value)
             current_settings[group][name] = {
                 **setting_definition,
                 "value": existing_value,
             }
-
-        # Set the attribute value (either from file or default)
-        if (
-            name in current_settings[group]
-            and "value" in current_settings[group][name]
-        ):
-            value = current_settings[group][name]["value"]
-            setattr(self, name, value)
-        else:
-            setattr(
-                self, name, default_value
-            )  # Save the updated settings file
+        # Set the attribute value in the nested group object
+        if not hasattr(self, group):
+            setattr(self, group, SettingsGroup())
+        setattr(getattr(self, group), name, current_settings[group][name]["value"])
         if not self._loading:
             self._save_settings_file(current_settings)
 
-    def reset_to_default(self, setting_name: str | None = None):
+    def reset_to_default(self, setting_name: str | None = None, group: str | None = None):
         """Reset a setting (or all settings) to their default values.
-
         If setting_name is None, reset all settings.
 
         Parameters
@@ -81,7 +64,7 @@ class Settings:
 
         if setting_name:
             # Reset single setting - find it in any group
-            for _group_name, group_settings in settings_data.items():
+            for group_name, group_settings in settings_data.items():
                 if (
                     isinstance(group_settings, dict)
                     and setting_name in group_settings
@@ -89,13 +72,16 @@ class Settings:
                     setting_data = group_settings[setting_name]
                     if "default" in setting_data:
                         default_value = setting_data["default"]
-                        setattr(self, setting_name, default_value)
-                        setting_data["value"] = setting_data["default"]
+                        if hasattr(self, group_name):
+                            setattr(getattr(self, group_name), setting_name, default_value)
+                        setting_data["value"] = default_value
                         self._save_settings_file(settings_data)
                         return
         else:
-            # Reset all settings
-            for _group_name, group_settings in settings_data.items():
+            # Reset all settings (optionally by group)
+            for group_name, group_settings in settings_data.items():
+                if group and group_name != group:
+                    continue
                 if isinstance(group_settings, dict):
                     for name, setting_data in group_settings.items():
                         if (
@@ -103,27 +89,25 @@ class Settings:
                             and "default" in setting_data
                         ):
                             default_value = setting_data["default"]
-                            setattr(self, name, default_value)
-                            setting_data["value"] = setting_data["default"]
+                            if hasattr(self, group_name):
+                                setattr(getattr(self, group_name), name, default_value)
+                            setting_data["value"] = default_value
             self._save_settings_file(settings_data)
 
     def _get_dynamic_choices(self, provider_key: str) -> list:
         """Get dynamic choices from entry points."""
         try:
-            # Check if it's an entry point group
             entries = entry_points(group=provider_key)
             return [entry.name for entry in entries]
         except (ImportError, AttributeError, ValueError):
-            # Handle cases where entry points don't exist or can't be loaded
             return []
 
     def _load_settings(self):
         """Load settings from the settings file and discover external settings."""
         with open(self._settings_path) as file:
             saved_settings = yaml.load(file, Loader=yaml.FullLoader) or {}
-
-        # Load all settings from all groups
-        for _group_name, group_settings in saved_settings.items():
+        for group_name, group_settings in saved_settings.items():
+            group_obj = SettingsGroup()
             if isinstance(group_settings, dict):
                 for name, setting_data in group_settings.items():
                     if (
@@ -131,19 +115,17 @@ class Settings:
                         and "value" in setting_data
                     ):
                         value = setting_data["value"]
-                        setattr(self, name, value)
-
-        # Discover and load external settings via entry points
+                        setattr(group_obj, name, value)
+            setattr(self, group_name, group_obj)
+        self._settings_by_group = saved_settings
         self._load_external_settings()
 
     def _load_external_settings(self):
         """Load settings registered by external libraries via entry points."""
         try:
-            # Look for settings providers in entry points
             for entry_point in entry_points(group="ndev_settings.providers"):
                 try:
                     provider_func = entry_point.load()
-                    # Provider function should call register_setting for each setting
                     provider_func(self)
                 except (
                     ImportError,
@@ -151,62 +133,43 @@ class Settings:
                     TypeError,
                     ValueError,
                 ) as e:
-                    # Log but don't fail - allows graceful degradation
-                    print(
-                        f"Warning: Failed to load settings from {entry_point.name}: {e}"
-                    )
+                    print(f"Warning: Failed to load settings from {entry_point.name}: {e}")
         except (ImportError, AttributeError):
-            # Entry points might not be available in all environments
             pass
 
     def __setattr__(self, name, value):
         """Override setattr to auto-save when settings are changed."""
         super().__setattr__(name, value)
-
-        # Auto-save if we're changing a setting (not internal attributes) and not during loading
-        if (
-            not name.startswith("_")
-            and name not in ("settings_file",)
-            and hasattr(self, "_loading")
-            and not self._loading
-        ):
+        # Only auto-save if changing a group object or a setting inside a group
+        if not name.startswith("_") and hasattr(self, "_loading") and not self._loading:
             self._save_settings()
 
     def _save_settings(self):
-        """Save the current settings to the settings file."""
-        with open(self._settings_path) as file:
-            current_settings = yaml.load(file, Loader=yaml.FullLoader) or {}
-
-        # Update values while preserving the group structure
+        # Save the current state of all settings to the YAML file
+        settings_data = {}
         for attr_name in dir(self):
-            if not attr_name.startswith("_") and not callable(
-                getattr(self, attr_name)
-            ):
-                value = getattr(self, attr_name)
-
-                # Find which group this setting belongs to
-                setting_found = False
-                for _group_name, group_settings in current_settings.items():
+            if attr_name.startswith("_") or callable(getattr(self, attr_name)):
+                continue
+            group_obj = getattr(self, attr_name)
+            if isinstance(group_obj, SettingsGroup):
+                group_dict = {}
+                for setting_name in dir(group_obj):
+                    if setting_name.startswith("_") or callable(getattr(group_obj, setting_name)):
+                        continue
+                    value = getattr(group_obj, setting_name)
+                    # Try to preserve metadata if possible
                     if (
-                        isinstance(group_settings, dict)
-                        and attr_name in group_settings
+                        hasattr(self, "_settings_by_group")
+                        and attr_name in self._settings_by_group
+                        and setting_name in self._settings_by_group[attr_name]
                     ):
-                        # Update existing setting value
-                        group_settings[attr_name]["value"] = value
-                        setting_found = True
-                        break
-
-                if not setting_found:
-                    # Create new setting in "Unknown" group
-                    if "Unknown" not in current_settings:
-                        current_settings["Unknown"] = {}
-                    current_settings["Unknown"][attr_name] = {
-                        "value": value,
-                        "default": value,
-                        "description": f"Setting {attr_name}",
-                    }
-
-        self._save_settings_file(current_settings)
+                        meta = self._settings_by_group[attr_name][setting_name].copy()
+                        meta["value"] = value
+                        group_dict[setting_name] = meta
+                    else:
+                        group_dict[setting_name] = {"value": value, "default": value, "description": f"Setting {setting_name}"}
+                settings_data[attr_name] = group_dict
+        self._save_settings_file(settings_data)
 
     def _save_settings_file(self, settings_data):
         """Helper to save settings data to file."""
@@ -224,4 +187,5 @@ def get_settings() -> Settings:
         _settings_instance = Settings(
             str(Path(__file__).parent / "ndev_settings.yaml")
         )
+    print(_settings_instance._settings_by_group)
     return _settings_instance
