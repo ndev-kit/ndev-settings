@@ -1,33 +1,16 @@
 from importlib.metadata import entry_points
 from pathlib import Path
-from types import SimpleNamespace
-
 import yaml
 
 
-class SettingsGroup(SimpleNamespace):
-    def __init__(self, parent_settings=None):
-        super().__init__()
-        self._parent_settings = parent_settings
-
-    def __setattr__(self, name, value):
-        super().__setattr__(name, value)
-        # Notify parent settings to save when any setting changes
-        if (not name.startswith("_") 
-            and hasattr(self, "_parent_settings")
-            and self._parent_settings is not None
-            and hasattr(self._parent_settings, "_loading")
-            and not self._parent_settings._loading):
-            self._parent_settings._save_settings()
-
+class SettingsGroup:
+    """Simple container for settings in a group."""
 
 class Settings:
     """A class to manage settings for the nDev plugin, with nested group objects."""
     def __init__(self, settings_file: str):
         self._settings_path = settings_file
-        self._loading = True
-        self._load_all_settings()  # Load both local and external settings
-        self._loading = False
+        self.load()
 
     def reset_to_default(self, setting_name: str | None = None, group: str | None = None):
         """Reset a setting (or all settings) to their default values."""
@@ -66,7 +49,7 @@ class Settings:
         except (ImportError, AttributeError, ValueError):
             return []
 
-    def _load_all_settings(self):
+    def load(self):
         """Load settings from main file, external YAML files, and entry points."""
         # Start with main settings file
         all_settings = self._load_yaml_file(self._settings_path)
@@ -85,7 +68,7 @@ class Settings:
 
         # Create group objects from merged settings
         for group_name, group_settings in all_settings.items():
-            group_obj = SettingsGroup(parent_settings=self)
+            group_obj = SettingsGroup()
             for name, setting_data in group_settings.items():
                 if isinstance(setting_data, dict) and "value" in setting_data:
                     value = setting_data["value"]
@@ -125,15 +108,7 @@ class Settings:
 
         return all_external_settings
 
-
-    def __setattr__(self, name, value):
-        """Override setattr to auto-save when settings are changed."""
-        super().__setattr__(name, value)
-        # Only auto-save if changing a group object or a setting inside a group
-        if not name.startswith("_") and hasattr(self, "_loading") and not self._loading:
-            self._save_settings()
-
-    def _save_settings(self):
+    def save(self):
         """Save the current state of all settings to the YAML file."""
         settings_data = {}
         for attr_name in dir(self):

@@ -137,3 +137,6 @@ class SettingsContainer(Container):
             if hasattr(widget, "enabled") and not widget.enabled:
                 continue
             setattr(group_obj, setting_name, widget.value)
+
+        # Save all changes to file after updating all widgets
+        self.settings.save()
