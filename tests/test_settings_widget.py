@@ -38,7 +38,7 @@ def test_widget_types_created_correctly():
         "Canvas.canvas_scale" in container._widgets):
         # Check if it's numeric and not boolean
         value = settings.Canvas.canvas_scale
-        if isinstance(value, (int, float)) and not isinstance(value, bool):
+        if isinstance(value, int | float) and not isinstance(value, bool):
             widget = container._widgets["Canvas.canvas_scale"]
             assert hasattr(widget, 'min'), f"Widget for Canvas.canvas_scale is {type(widget)}, expected FloatSpinBox"
 
@@ -118,8 +118,8 @@ def test_grouping_functionality():
     container = SettingsContainer()
 
     # Check that we have widgets for different groups
-    canvas_widgets = [key for key in container._widgets.keys() if key.startswith("Canvas.")]
-    reader_widgets = [key for key in container._widgets.keys() if key.startswith("Reader.")]
+    canvas_widgets = [key for key in container._widgets if key.startswith("Canvas.")]
+    reader_widgets = [key for key in container._widgets if key.startswith("Reader.")]
 
     # Should have widgets from multiple groups
     if hasattr(container.settings, "Canvas"):

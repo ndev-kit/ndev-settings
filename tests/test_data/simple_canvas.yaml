@@ -1,0 +1,5 @@
+Canvas:
+  canvas_scale:
+    value: 1.0
+    default: 1.0
+    description: "Scale factor for canvas rendering"

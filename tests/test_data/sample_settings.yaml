@@ -1,0 +1,27 @@
+Reader:
+  preferred_reader:
+    value: "test-reader"
+    default: "bioio-ome-tiff"
+    description: "Preferred reader to use when opening images"
+  scene_handling:
+    value: "test-scene"
+    default: "Open Scene Widget"
+    description: "How to handle files with multiple scenes"
+  clear_layers_on_new_scene:
+    value: true
+    default: false
+    description: "Whether to clear the viewer when selecting a new scene"
+  unpack_channels_as_layers:
+    value: false
+    default: true
+    description: "Whether to unpack channels as layers"
+
+Canvas:
+  canvas_size:
+    value: [512, 512]
+    default: [1024, 1024]
+    description: "Height x width of the canvas when exporting a screenshot"
+  canvas_scale:
+    value: 2.5
+    default: 1.0
+    description: "Scale factor for canvas rendering"

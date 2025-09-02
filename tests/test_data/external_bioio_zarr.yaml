@@ -1,0 +1,15 @@
+# External library settings for bioio-ome-zarr
+BioioOmeZarr:
+  chunk_size:
+    value: [1024, 1024]
+    default: [512, 512]
+    description: "Default chunk size for OME-Zarr reading"
+  compression:
+    value: "lz4"
+    default: "blosc"
+    description: "Compression algorithm for OME-Zarr"
+    choices: ["blosc", "lz4", "gzip", "none"]
+  parallel_read:
+    value: true
+    default: false
+    description: "Enable parallel reading of OME-Zarr chunks"
