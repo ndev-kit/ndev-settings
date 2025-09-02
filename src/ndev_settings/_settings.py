@@ -6,7 +6,19 @@ import yaml
 
 
 class SettingsGroup(SimpleNamespace):
-    pass
+    def __init__(self, parent_settings=None):
+        super().__init__()
+        self._parent_settings = parent_settings
+
+    def __setattr__(self, name, value):
+        super().__setattr__(name, value)
+        # Notify parent settings to save when any setting changes
+        if (not name.startswith("_") 
+            and hasattr(self, "_parent_settings")
+            and self._parent_settings is not None
+            and hasattr(self._parent_settings, "_loading")
+            and not self._parent_settings._loading):
+            self._parent_settings._save_settings()
 
 
 class Settings:
@@ -73,7 +85,7 @@ class Settings:
 
         # Create group objects from merged settings
         for group_name, group_settings in all_settings.items():
-            group_obj = SettingsGroup()
+            group_obj = SettingsGroup(parent_settings=self)
             for name, setting_data in group_settings.items():
                 if isinstance(setting_data, dict) and "value" in setting_data:
                     value = setting_data["value"]

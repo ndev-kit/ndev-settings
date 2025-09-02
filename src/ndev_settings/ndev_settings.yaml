@@ -28,8 +28,8 @@ Reader:
     description: Preferred reader to use when opening images
     value: bioio-ome-tiff
     dynamic_choices:
-      provider: "bioio.readers"
-      fallback_message: "No readers found"
+      provider: bioio.readers
+      fallback_message: No readers found
   scene_handling:
     choices:
     - Open Scene Widget
