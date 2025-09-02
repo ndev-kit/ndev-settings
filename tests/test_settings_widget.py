@@ -1,5 +1,3 @@
-import yaml
-
 from ndev_settings import get_settings
 from ndev_settings._settings_widget import SettingsContainer
 
@@ -131,37 +129,11 @@ def test_grouping_functionality():
         assert len(reader_widgets) > 0, "Should have Reader widgets"
 
 
-def test_widget_container_with_custom_settings(tmp_path):
+def test_widget_container_with_custom_settings(test_group_file):
     """Test widget creation with custom settings file."""
-    # Create a temporary settings file
-    settings_file = tmp_path / "test_settings.yaml"
-    settings_file.write_text(
-        yaml.dump(
-            {
-                "TestGroup": {
-                    "test_setting": {
-                        "value": "test_value",
-                        "default": "default_value",
-                        "description": "A test setting",
-                    },
-                    "numeric_setting": {
-                        "value": 42.0,
-                        "default": 0.0,
-                        "description": "A numeric test setting",
-                    },
-                    "boolean_setting": {
-                        "value": True,
-                        "default": False,
-                        "description": "A boolean test setting",
-                    },
-                },
-            }
-        )
-    )
-
     # Create a Settings instance with the custom file
     from ndev_settings._settings import Settings
-    custom_settings = Settings(str(settings_file))
+    custom_settings = Settings(str(test_group_file))
     
     # Verify the settings were loaded correctly
     assert hasattr(custom_settings, "TestGroup")
