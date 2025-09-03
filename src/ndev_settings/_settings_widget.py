@@ -30,16 +30,14 @@ class SettingsContainer(Container):
         self, group_obj, name: str, info: dict
     ) -> Widget | None:
         """Create appropriate widget for a setting based on its metadata."""
-        default_value = getattr(group_obj, name)
+        init_value = getattr(group_obj, name)
         label = name.replace("_", " ").title()
-
-        widget_type = "ComboBox" if "dynamic_choices" in info else None
 
         # Separate create_widget args from widget options
         create_widget_args = {
-            "value": default_value,
+            "value": init_value,
             "label": label,
-            "widget_type": widget_type,
+            "widget_type": "ComboBox" if "dynamic_choices" in info else None,
         }
 
         # Widget options (things that get passed to the widget constructor)
@@ -56,9 +54,7 @@ class SettingsContainer(Container):
         if "dynamic_choices" in info:
             choices, fallback_message = self._get_dynamic_choices(info)
             choices_available = choices != [fallback_message]
-            current_value = (
-                default_value if default_value in choices else choices[0]
-            )
+            current_value = init_value if init_value in choices else choices[0]
 
             create_widget_args["value"] = current_value
             widget_options.update(
