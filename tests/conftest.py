@@ -4,7 +4,6 @@ import shutil
 from pathlib import Path
 
 import pytest
-import yaml
 
 
 @pytest.fixture(autouse=True)
@@ -79,60 +78,6 @@ def external_contribution_file(tmp_path, test_data_dir):
 def empty_settings_file(tmp_path):
     """Create an empty settings file path (file doesn't exist)."""
     return tmp_path / "nonexistent.yaml"
-
-
-@pytest.fixture
-def minimal_settings_file(tmp_path):
-    """Create a minimal settings file for basic testing."""
-    data = {
-        "TestGroup": {
-            "simple_setting": {
-                "value": "test_value",
-                "default": "default_value",
-                "tooltip": "A simple test setting",
-            },
-            "numeric_setting": {
-                "value": 42,
-                "default": 0,
-                "tooltip": "A numeric test setting",
-            },
-            "boolean_setting": {
-                "value": True,
-                "default": False,
-                "tooltip": "A boolean test setting",
-            },
-        },
-    }
-    file_path = tmp_path / "minimal_settings.yaml"
-    file_path.write_text(yaml.dump(data, default_flow_style=False))
-    return file_path
-
-
-@pytest.fixture
-def test_group_file(tmp_path):
-    """Create a test settings file with TestGroup for widget testing."""
-    data = {
-        "TestGroup": {
-            "test_setting": {
-                "value": "test_value",
-                "default": "default_value",
-                "tooltip": "A test setting",
-            },
-            "numeric_setting": {
-                "value": 42.0,
-                "default": 0.0,
-                "tooltip": "A numeric test setting",
-            },
-            "boolean_setting": {
-                "value": True,
-                "default": False,
-                "tooltip": "A boolean test setting",
-            },
-        },
-    }
-    file_path = tmp_path / "test_group.yaml"
-    file_path.write_text(yaml.dump(data, default_flow_style=False))
-    return file_path
 
 
 @pytest.fixture

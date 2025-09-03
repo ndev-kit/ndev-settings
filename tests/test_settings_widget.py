@@ -154,18 +154,18 @@ def test_grouping_functionality():
         assert len(reader_widgets) > 0, "Should have ndevio_Reader widgets"
 
 
-def test_widget_container_with_custom_settings(test_group_file):
+def test_widget_container_with_custom_settings(test_settings_file):
     """Test widget creation with custom settings file."""
     # Create a Settings instance with the custom file
     from ndev_settings._settings import Settings
 
-    custom_settings = Settings(str(test_group_file))
+    custom_settings = Settings(str(test_settings_file))
 
     # Verify the settings were loaded correctly
-    assert hasattr(custom_settings, "TestGroup")
-    assert custom_settings.TestGroup.test_setting == "test_value"
-    assert custom_settings.TestGroup.numeric_setting == 42.0
-    assert custom_settings.TestGroup.boolean_setting is True
+    assert hasattr(custom_settings, "Group_A")
+    assert custom_settings.Group_A.setting_int == 49
+    assert custom_settings.Group_A.setting_float == 3.14
+    assert custom_settings.Group_A.setting_bool is True
 
 
 def test_settings_update_and_save():
