@@ -1,3 +1,5 @@
+import pytest
+
 from ndev_settings import get_settings
 from ndev_settings._settings_widget import SettingsContainer
 
@@ -13,9 +15,9 @@ def test_settings_container_initialization():
     # Check that widgets were created for available settings
     # With the grouped approach, check that some expected group.setting combinations exist
     expected_widgets = [
-        "ndevio_Reader.preferred_reader",
-        "ndevio_Reader.scene_handling",
-        "Canvas.canvas_scale",
+        "Group_A.setting_int",
+        "Group_A.setting_choices",
+        "Group_A.setting_float",
     ]
     for widget_key in expected_widgets:
         group_name, setting_name = widget_key.split(".", 1)
@@ -32,27 +34,27 @@ def test_widget_types_created_correctly():
 
     # Test boolean settings create checkboxes
     if (
-        hasattr(settings, "ndevio_Reader")
-        and hasattr(settings.ndevio_Reader, "clear_layers_on_new_scene")
-        and isinstance(settings.ndevio_Reader.clear_layers_on_new_scene, bool)
-        and "ndevio_Reader.clear_layers_on_new_scene" in container._widgets
+        hasattr(settings, "Group_A")
+        and hasattr(settings.Group_A, "setting_bool")
+        and isinstance(settings.Group_A.setting_bool, bool)
+        and "Group_A.setting_bool" in container._widgets
     ):
-        widget = container._widgets["ndevio_Reader.clear_layers_on_new_scene"]
+        widget = container._widgets["Group_A.setting_bool"]
         assert hasattr(widget, "value")  # CheckBox has value attribute
 
     # Test that numeric settings create spinboxes
     if (
-        hasattr(settings, "Canvas")
-        and hasattr(settings.Canvas, "canvas_scale")
-        and "Canvas.canvas_scale" in container._widgets
+        hasattr(settings, "Group_A")
+        and hasattr(settings.Group_A, "setting_float")
+        and "Group_A.setting_float" in container._widgets
     ):
         # Check if it's numeric and not boolean
-        value = settings.Canvas.canvas_scale
+        value = settings.Group_A.setting_float
         if isinstance(value, int | float) and not isinstance(value, bool):
-            widget = container._widgets["Canvas.canvas_scale"]
+            widget = container._widgets["Group_A.setting_float"]
             assert hasattr(
                 widget, "min"
-            ), f"Widget for Canvas.canvas_scale is {type(widget)}, expected FloatSpinBox"
+            ), f"Widget for Group_A.setting_float is {type(widget)}, expected FloatSpinBox"
 
 
 def test_widget_values_match_settings():
@@ -83,10 +85,10 @@ def test_widget_updates_settings():
     """Test that changing widget values updates the settings."""
     container = SettingsContainer()
 
-    # Test with Canvas.canvas_scale (numeric setting)
-    if "Canvas.canvas_scale" in container._widgets:
-        widget = container._widgets["Canvas.canvas_scale"]
-        original_value = container.settings.Canvas.canvas_scale
+    # Test with Group_A.setting_float (numeric setting)
+    if "Group_A.setting_float" in container._widgets:
+        widget = container._widgets["Group_A.setting_float"]
+        original_value = container.settings.Group_A.setting_float
 
         # Change the widget value
         new_value = original_value + 1.0
@@ -96,7 +98,9 @@ def test_widget_updates_settings():
         # We need to manually trigger the update since we're not in the GUI event loop
         container._update_settings()
 
-        assert new_value == container.settings.Canvas.canvas_scale
+        assert new_value == pytest.approx(
+            container.settings.Group_A.setting_float
+        )
 
         # Reset for other tests
         widget.value = original_value
@@ -107,10 +111,10 @@ def test_settings_manual_save():
     """Test that settings can be manually saved after widget changes."""
     container = SettingsContainer()
 
-    # Test with Canvas.canvas_scale if available
-    if "Canvas.canvas_scale" in container._widgets:
-        widget = container._widgets["Canvas.canvas_scale"]
-        original_value = container.settings.Canvas.canvas_scale
+    # Test with Group_A.setting_float if available
+    if "Group_A.setting_float" in container._widgets:
+        widget = container._widgets["Group_A.setting_float"]
+        original_value = container.settings.Group_A.setting_float
 
         # Change the widget value
         new_value = original_value + 2.0
@@ -121,7 +125,9 @@ def test_settings_manual_save():
 
         # The manual save should have been called automatically in _update_settings
         # Verify the setting was updated
-        assert container.settings.Canvas.canvas_scale == new_value
+        assert container.settings.Group_A.setting_float == pytest.approx(
+            new_value
+        )
 
         # Reset for other tests
         widget.value = original_value
@@ -204,32 +210,30 @@ def test_reset_to_defaults():
     settings = container.settings
 
     # Change some settings via widgets
-    if "Canvas.canvas_scale" in container._widgets:
-        widget = container._widgets["Canvas.canvas_scale"]
-        original_value = settings.Canvas.canvas_scale
+    if "Group_A.setting_float" in container._widgets:
+        widget = container._widgets["Group_A.setting_float"]
+        original_value = settings.Group_A.setting_float
         widget.value = original_value + 3.0
         container._update_settings()
-        assert settings.Canvas.canvas_scale == original_value + 3.0
+        assert settings.Group_A.setting_float == pytest.approx(
+            original_value + 3.0
+        )
 
-    if "ndevio_Reader.clear_layers_on_new_scene" in container._widgets:
-        widget = container._widgets["ndevio_Reader.clear_layers_on_new_scene"]
-        original_value = settings.ndevio_Reader.clear_layers_on_new_scene
+    if "Group_A.setting_bool" in container._widgets:
+        widget = container._widgets["Group_A.setting_bool"]
+        original_value = settings.Group_A.setting_bool
         widget.value = not original_value
         container._update_settings()
-        assert settings.ndevio_Reader.clear_layers_on_new_scene == (
-            not original_value
-        )
+        assert settings.Group_A.setting_bool == (not original_value)
 
     # Now reset to defaults
     container._reset_to_defaults()
     # Verify settings are back to defaults
     assert (
-        settings.Canvas.canvas_scale
-        == settings._grouped_settings["Canvas"]["canvas_scale"]["default"]
+        settings.Group_A.setting_float
+        == settings._grouped_settings["Group_A"]["setting_float"]["default"]
     )
     assert (
-        settings.ndevio_Reader.clear_layers_on_new_scene
-        == settings._grouped_settings["ndevio_Reader"][
-            "clear_layers_on_new_scene"
-        ]["default"]
+        settings.Group_A.setting_bool
+        == settings._grouped_settings["Group_A"]["setting_bool"]["default"]
     )

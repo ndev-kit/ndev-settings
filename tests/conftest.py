@@ -8,63 +8,16 @@ import yaml
 
 
 @pytest.fixture(autouse=True)
-def mock_settings_file_path(tmp_path, monkeypatch):
-    """Mock the settings file path to use a temporary file during tests."""
+def mock_settings_file_path(tmp_path, monkeypatch, test_data_dir):
+    """Mock the settings file path to use test data during tests."""
     from pathlib import Path
 
     import ndev_settings
     from ndev_settings._settings import Settings
 
-    # Create a temporary settings file for tests
+    # Use the existing test_settings.yaml as our mock data
     test_settings_path = tmp_path / "test_ndev_settings.yaml"
-
-    # Create a basic settings file structure that matches what's expected
-    basic_settings = {
-        "Canvas": {
-            "canvas_scale": {
-                "default": 1.0,
-                "value": 1.0,
-                "tooltip": "Test canvas scale",
-                "min": 0.1,
-                "max": 100.0,
-            }
-        },
-        "ndevio_Reader": {
-            "preferred_reader": {
-                "default": "bioio-ome-tiff",
-                "value": "bioio-ome-tiff",
-                "tooltip": "Test reader",
-                "dynamic_choices": {
-                    "provider": "bioio.readers",
-                    "fallback_message": "No readers found",
-                },
-            },
-            "scene_handling": {
-                "default": "Open Scene Widget",
-                "value": "View First Scene Only",
-                "tooltip": "How to handle files with multiple scenes",
-                "choices": [
-                    "Open Scene Widget",
-                    "View All Scenes",
-                    "View First Scene Only",
-                ],
-            },
-            "clear_layers_on_new_scene": {
-                "default": False,
-                "value": False,
-                "tooltip": "Whether to clear the viewer when selecting a new scene",
-            },
-            "unpack_channels_as_layers": {
-                "default": True,
-                "value": True,
-                "tooltip": "Whether to unpack channels as layers",
-            },
-        },
-    }
-
-    test_settings_path.write_text(
-        yaml.dump(basic_settings, default_flow_style=False, sort_keys=False)
-    )
+    shutil.copy(test_data_dir / "test_settings.yaml", test_settings_path)
 
     # Store the original Settings class constructor
     original_settings_init = Settings.__init__
