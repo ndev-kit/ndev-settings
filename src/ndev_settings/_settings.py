@@ -73,14 +73,19 @@ class Settings:
         # Load external YAML files from entry points
         external_yaml_settings = self._load_external_yaml_files()
 
-        # Merge external YAML settings
+        # Merge external YAML settings - append new groups at the end to preserve order
+        # First, add settings to existing groups
+        for group_name, group_settings in external_yaml_settings.items():
+            if group_name in all_settings:
+                # Add to existing group (main file settings take precedence)
+                for setting_name, setting_data in group_settings.items():
+                    if setting_name not in all_settings[group_name]:
+                        all_settings[group_name][setting_name] = setting_data
+
+        # Then, add completely new groups at the end
         for group_name, group_settings in external_yaml_settings.items():
             if group_name not in all_settings:
-                all_settings[group_name] = {}
-            # Only add settings that don't already exist (main file takes precedence)
-            for setting_name, setting_data in group_settings.items():
-                if setting_name not in all_settings[group_name]:
-                    all_settings[group_name][setting_name] = setting_data
+                all_settings[group_name] = group_settings
 
         # Create group objects from merged settings
         for group_name, group_settings in all_settings.items():
@@ -92,11 +97,13 @@ class Settings:
             setattr(self, group_name, group_obj)
 
         self._grouped_settings = all_settings
+        self.save()  # Save to ensure all settings (including externals) are persisted
 
     def _load_yaml_file(self, yaml_path: str) -> dict:
         """Load a single YAML settings file."""
         try:
             with open(yaml_path) as file:
+                # Use FullLoader to support Python-specific tags like !!python/tuple
                 return yaml.load(file, Loader=yaml.FullLoader) or {}
         except FileNotFoundError:
             return {}
@@ -110,10 +117,40 @@ class Settings:
                 group="ndev_settings.yaml_providers"
             ):
                 try:
-                    yaml_path_func = entry_point.load()
-                    yaml_path = (
-                        yaml_path_func()
-                    )  # Function should return path to YAML file
+                    # Support napari-style resource paths (e.g., "package:file.yaml")
+                    entry_value = entry_point.value
+                    if ":" in entry_value and not entry_value.endswith(")"):
+                        # This looks like a resource path (package:file.yaml)
+                        package_name, resource_name = entry_value.split(":", 1)
+                        try:
+                            # Try using importlib.resources (Python 3.9+)
+                            try:
+                                from importlib.resources import files
+
+                                yaml_path = str(
+                                    files(package_name) / resource_name
+                                )
+                            except ImportError:
+                                # Fallback for older Python versions
+                                from importlib.resources import path
+
+                                with path(package_name, resource_name) as p:
+                                    yaml_path = str(p)
+                        except (ImportError, FileNotFoundError):
+                            # Fallback: assume it's in the package directory
+                            import importlib
+
+                            module = importlib.import_module(package_name)
+                            if module.__file__:
+                                package_dir = Path(module.__file__).parent
+                                yaml_path = str(package_dir / resource_name)
+                            else:
+                                continue  # Skip if we can't find the module file
+                    else:
+                        # Standard callable entry point
+                        yaml_path_func = entry_point.load()
+                        yaml_path = yaml_path_func()
+
                     if Path(yaml_path).exists():
                         external_settings = self._load_yaml_file(yaml_path)
                         # Merge with all external settings

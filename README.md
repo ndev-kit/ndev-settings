@@ -93,22 +93,11 @@ ndevio_Export:
     - 1024
 ```
 
-**Step 2**: Create a function to provide the YAML path:
-
-```python
-# In ./src/ndevio/ndev_settings.py
-from pathlib import Path
-
-def get_ndevio_settings_yaml():
-    """Return the path to ndevio's settings YAML file."""
-    return str(Path(__file__).parent / "ndevio_settings.yaml")
-```
-
-**Step 3**: Register the entry point in `pyproject.toml`:
+**Step 2**: Register the entry point in `pyproject.toml`:
 
 ```toml
 [project.entry-points."ndev_settings.yaml_providers"]
-bioio = "ndevio.ndev_settings:get_ndevio_settings_yaml"
+ndevio = "ndevio:ndev_settings.yaml"
 ```
 
 ## Usage Example
