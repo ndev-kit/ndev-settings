@@ -13,8 +13,8 @@ def test_settings_container_initialization():
     # Check that widgets were created for available settings
     # With the grouped approach, check that some expected group.setting combinations exist
     expected_widgets = [
-        "Reader.preferred_reader",
-        "Reader.scene_handling",
+        "ndevio_Reader.preferred_reader",
+        "ndevio_Reader.scene_handling",
         "Canvas.canvas_scale",
     ]
     for widget_key in expected_widgets:
@@ -32,12 +32,12 @@ def test_widget_types_created_correctly():
 
     # Test boolean settings create checkboxes
     if (
-        hasattr(settings, "Reader")
-        and hasattr(settings.Reader, "clear_layers_on_new_scene")
-        and isinstance(settings.Reader.clear_layers_on_new_scene, bool)
-        and "Reader.clear_layers_on_new_scene" in container._widgets
+        hasattr(settings, "ndevio_Reader")
+        and hasattr(settings.ndevio_Reader, "clear_layers_on_new_scene")
+        and isinstance(settings.ndevio_Reader.clear_layers_on_new_scene, bool)
+        and "ndevio_Reader.clear_layers_on_new_scene" in container._widgets
     ):
-        widget = container._widgets["Reader.clear_layers_on_new_scene"]
+        widget = container._widgets["ndevio_Reader.clear_layers_on_new_scene"]
         assert hasattr(widget, "value")  # CheckBox has value attribute
 
     # Test that numeric settings create spinboxes
@@ -137,15 +137,15 @@ def test_grouping_functionality():
         key for key in container._widgets if key.startswith("Canvas.")
     ]
     reader_widgets = [
-        key for key in container._widgets if key.startswith("Reader.")
+        key for key in container._widgets if key.startswith("ndevio_Reader.")
     ]
 
     # Should have widgets from multiple groups
     if hasattr(container.settings, "Canvas"):
         assert len(canvas_widgets) > 0, "Should have Canvas widgets"
 
-    if hasattr(container.settings, "Reader"):
-        assert len(reader_widgets) > 0, "Should have Reader widgets"
+    if hasattr(container.settings, "ndevio_Reader"):
+        assert len(reader_widgets) > 0, "Should have ndevio_Reader widgets"
 
 
 def test_widget_container_with_custom_settings(test_group_file):
@@ -211,12 +211,12 @@ def test_reset_to_defaults():
         container._update_settings()
         assert settings.Canvas.canvas_scale == original_value + 3.0
 
-    if "Reader.clear_layers_on_new_scene" in container._widgets:
-        widget = container._widgets["Reader.clear_layers_on_new_scene"]
-        original_value = settings.Reader.clear_layers_on_new_scene
+    if "ndevio_Reader.clear_layers_on_new_scene" in container._widgets:
+        widget = container._widgets["ndevio_Reader.clear_layers_on_new_scene"]
+        original_value = settings.ndevio_Reader.clear_layers_on_new_scene
         widget.value = not original_value
         container._update_settings()
-        assert settings.Reader.clear_layers_on_new_scene == (
+        assert settings.ndevio_Reader.clear_layers_on_new_scene == (
             not original_value
         )
 
@@ -228,8 +228,8 @@ def test_reset_to_defaults():
         == settings._grouped_settings["Canvas"]["canvas_scale"]["default"]
     )
     assert (
-        settings.Reader.clear_layers_on_new_scene
-        == settings._grouped_settings["Reader"]["clear_layers_on_new_scene"][
-            "default"
-        ]
+        settings.ndevio_Reader.clear_layers_on_new_scene
+        == settings._grouped_settings["ndevio_Reader"][
+            "clear_layers_on_new_scene"
+        ]["default"]
     )
