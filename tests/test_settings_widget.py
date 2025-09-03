@@ -67,8 +67,12 @@ def test_widget_values_match_settings():
         group_obj = getattr(container.settings, group_name)
         current_value = getattr(group_obj, setting_name)
 
-        # Handle special case for PREFERRED_READER
-        if setting_name == "preferred_reader" and not widget.enabled:
+        # Handle special case for dynamic choices widgets
+        if setting_name == "setting_dynamic" and not widget.enabled:
+            assert "No readers found" in str(
+                widget.value
+            ) or "No choices" in str(widget.value)
+            assert current_value == "bioio-ome-tiff"  # from YAML
             continue
 
         # For tuple/list values, widget might convert to tuple
