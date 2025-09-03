@@ -18,42 +18,33 @@ class Settings:
         self, setting_name: str | None = None, group: str | None = None
     ):
         """Reset a setting (or all settings) to their default values."""
-        # Use the merged settings data that includes external settings
-        if hasattr(self, "_grouped_settings"):
-            all_settings = self._grouped_settings
-        else:
-            # Fallback to main file if _grouped_settings not available
-            with open(self._settings_path) as file:
-                all_settings = yaml.load(file, Loader=yaml.FullLoader) or {}
-
         if setting_name:
             # Reset single setting - find it in any group
-            for group_name, group_settings in all_settings.items():
+            for group_name, group_settings in self._grouped_settings.items():
                 if setting_name in group_settings:
                     setting_data = group_settings[setting_name]
-
                     default_value = setting_data["default"]
+
+                    # Update both the SettingsGroup object and _grouped_settings
                     setattr(
                         getattr(self, group_name), setting_name, default_value
                     )
-                    # Update the in-memory settings data
                     setting_data["value"] = default_value
-                    # Save changes (this will save everything including external changes)
+
                     self.save()
                     return
         else:
             # Reset all settings (optionally by group)
-            for group_name, group_settings in all_settings.items():
+            for group_name, group_settings in self._grouped_settings.items():
                 if group and group_name != group:
-                    # Skip non-specified groups, unless None then continue
                     continue
                 for name, setting_data in group_settings.items():
                     if "default" in setting_data:
                         default_value = setting_data["default"]
+
+                        # Update both the SettingsGroup object and _grouped_settings
                         setattr(getattr(self, group_name), name, default_value)
-                        # Update the in-memory settings data
                         setting_data["value"] = default_value
-            # Save changes (this will save everything including external changes)
             self.save()
 
     def _get_dynamic_choices(self, provider_key: str) -> list:
