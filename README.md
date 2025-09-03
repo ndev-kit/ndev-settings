@@ -48,7 +48,7 @@ pip install git+https://github.com/ndev-kit/ndev-settings.git
 
 External libraries can provide their settings in YAML format with the same structure as your main `ndev_settings.yaml`.
 
-**Step 1**: Create a YAML file in the external library (e.g., `ndevio_settings.yaml`):
+**Step 1**: Create a YAML file in the external library (e.g., `ndev_settings.yaml`):
 
 ```yaml
 ndevio_Reader:
