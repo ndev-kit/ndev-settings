@@ -111,7 +111,6 @@ class Settings:
     def _load_external_yaml_files(self) -> dict:
         """Load external YAML files from other packages via entry points."""
         all_external_settings = {}
-        print("Loading external YAML files...")
         try:
             # Look for entry points that provide YAML file paths
             for entry_point in entry_points(group="ndev_settings.manifest"):
@@ -129,9 +128,6 @@ class Settings:
                     from importlib.resources import files
 
                     yaml_path = str(files(package_name) / resource_name)
-                    print(
-                        f"  - Loading from {yaml_path} (entry point: {entry_point.name})"
-                    )
                     external_settings = self._load_yaml_file(yaml_path)
                     # Merge with all external settings
                     for (
