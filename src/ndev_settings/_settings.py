@@ -7,16 +7,20 @@ import yaml
 class SettingsGroup:
     """Simple container for settings in a group."""
 
+
 class Settings:
     """A class to manage settings for the nDev plugin, with nested group objects."""
+
     def __init__(self, settings_file: str):
         self._settings_path = settings_file
         self.load()
 
-    def reset_to_default(self, setting_name: str | None = None, group: str | None = None):
+    def reset_to_default(
+        self, setting_name: str | None = None, group: str | None = None
+    ):
         """Reset a setting (or all settings) to their default values."""
         # Use the merged settings data that includes external settings
-        if hasattr(self, '_grouped_settings'):
+        if hasattr(self, "_grouped_settings"):
             all_settings = self._grouped_settings
         else:
             # Fallback to main file if _grouped_settings not available
@@ -30,7 +34,9 @@ class Settings:
                     setting_data = group_settings[setting_name]
 
                     default_value = setting_data["default"]
-                    setattr(getattr(self, group_name), setting_name, default_value)
+                    setattr(
+                        getattr(self, group_name), setting_name, default_value
+                    )
                     # Update the in-memory settings data
                     setting_data["value"] = default_value
                     # Save changes (this will save everything including external changes)
@@ -100,19 +106,35 @@ class Settings:
         all_external_settings = {}
         try:
             # Look for entry points that provide YAML file paths
-            for entry_point in entry_points(group="ndev_settings.yaml_providers"):
+            for entry_point in entry_points(
+                group="ndev_settings.yaml_providers"
+            ):
                 try:
                     yaml_path_func = entry_point.load()
-                    yaml_path = yaml_path_func()  # Function should return path to YAML file
+                    yaml_path = (
+                        yaml_path_func()
+                    )  # Function should return path to YAML file
                     if Path(yaml_path).exists():
                         external_settings = self._load_yaml_file(yaml_path)
                         # Merge with all external settings
-                        for group_name, group_settings in external_settings.items():
+                        for (
+                            group_name,
+                            group_settings,
+                        ) in external_settings.items():
                             if group_name not in all_external_settings:
                                 all_external_settings[group_name] = {}
-                            all_external_settings[group_name].update(group_settings)
-                except (ImportError, AttributeError, TypeError, ValueError) as e:
-                    print(f"Warning: Failed to load YAML settings from {entry_point.name}: {e}")
+                            all_external_settings[group_name].update(
+                                group_settings
+                            )
+                except (
+                    ImportError,
+                    AttributeError,
+                    TypeError,
+                    ValueError,
+                ) as e:
+                    print(
+                        f"Warning: Failed to load YAML settings from {entry_point.name}: {e}"
+                    )
         except (ImportError, AttributeError):
             pass
 
@@ -128,7 +150,9 @@ class Settings:
             if isinstance(group_obj, SettingsGroup):
                 group_dict = {}
                 for setting_name in dir(group_obj):
-                    if setting_name.startswith("_") or callable(getattr(group_obj, setting_name)):
+                    if setting_name.startswith("_") or callable(
+                        getattr(group_obj, setting_name)
+                    ):
                         continue
                     value = getattr(group_obj, setting_name)
                     # Try to preserve metadata if possible
@@ -137,14 +161,16 @@ class Settings:
                         and attr_name in self._grouped_settings
                         and setting_name in self._grouped_settings[attr_name]
                     ):
-                        meta = self._grouped_settings[attr_name][setting_name].copy()
+                        meta = self._grouped_settings[attr_name][
+                            setting_name
+                        ].copy()
                         meta["value"] = value
                         group_dict[setting_name] = meta
                     else:
                         group_dict[setting_name] = {
                             "value": value,
                             "default": value,
-                            "description": f"Setting {setting_name}"
+                            "description": f"Setting {setting_name}",
                         }
                 settings_data[attr_name] = group_dict
         self._save_settings_file(settings_data)
@@ -152,4 +178,9 @@ class Settings:
     def _save_settings_file(self, settings_data):
         """Helper to save settings data to file."""
         with open(self._settings_path, "w") as file:
-            yaml.dump(settings_data, file, default_flow_style=False)
+            yaml.dump(
+                settings_data,
+                file,
+                default_flow_style=False,
+                sort_keys=False,
+            )
