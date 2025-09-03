@@ -6,13 +6,11 @@ Canvas:
     tooltip: Scales exported figures and screenshots by this value
     value: 1.0
   canvas_size:
-    default: !!python/tuple
+    default: &id001 !!python/tuple
     - 1024
     - 1024
     tooltip: Height x width of the canvas when exporting a screenshot
-    value: !!python/tuple
-    - 1024
-    - 1024
+    value: *id001
   override_canvas_size:
     default: false
     tooltip: Whether to override the canvas size when exporting canvas screenshot

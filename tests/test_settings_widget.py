@@ -12,10 +12,16 @@ def test_settings_container_initialization():
 
     # Check that widgets were created for available settings
     # With the grouped approach, check that some expected group.setting combinations exist
-    expected_widgets = ["Reader.preferred_reader", "Reader.scene_handling", "Canvas.canvas_scale"]
+    expected_widgets = [
+        "Reader.preferred_reader",
+        "Reader.scene_handling",
+        "Canvas.canvas_scale",
+    ]
     for widget_key in expected_widgets:
         group_name, setting_name = widget_key.split(".", 1)
-        if hasattr(settings_singleton, group_name) and hasattr(getattr(settings_singleton, group_name), setting_name):
+        if hasattr(settings_singleton, group_name) and hasattr(
+            getattr(settings_singleton, group_name), setting_name
+        ):
             assert widget_key in container._widgets
 
 
@@ -25,22 +31,28 @@ def test_widget_types_created_correctly():
     settings = container.settings
 
     # Test boolean settings create checkboxes
-    if (hasattr(settings, "Reader") and
-        hasattr(settings.Reader, "clear_layers_on_new_scene") and
-        isinstance(settings.Reader.clear_layers_on_new_scene, bool) and
-        "Reader.clear_layers_on_new_scene" in container._widgets):
+    if (
+        hasattr(settings, "Reader")
+        and hasattr(settings.Reader, "clear_layers_on_new_scene")
+        and isinstance(settings.Reader.clear_layers_on_new_scene, bool)
+        and "Reader.clear_layers_on_new_scene" in container._widgets
+    ):
         widget = container._widgets["Reader.clear_layers_on_new_scene"]
-        assert hasattr(widget, 'value')  # CheckBox has value attribute
+        assert hasattr(widget, "value")  # CheckBox has value attribute
 
     # Test that numeric settings create spinboxes
-    if (hasattr(settings, "Canvas") and
-        hasattr(settings.Canvas, "canvas_scale") and
-        "Canvas.canvas_scale" in container._widgets):
+    if (
+        hasattr(settings, "Canvas")
+        and hasattr(settings.Canvas, "canvas_scale")
+        and "Canvas.canvas_scale" in container._widgets
+    ):
         # Check if it's numeric and not boolean
         value = settings.Canvas.canvas_scale
         if isinstance(value, int | float) and not isinstance(value, bool):
             widget = container._widgets["Canvas.canvas_scale"]
-            assert hasattr(widget, 'min'), f"Widget for Canvas.canvas_scale is {type(widget)}, expected FloatSpinBox"
+            assert hasattr(
+                widget, "min"
+            ), f"Widget for Canvas.canvas_scale is {type(widget)}, expected FloatSpinBox"
 
 
 def test_widget_values_match_settings():
@@ -58,8 +70,11 @@ def test_widget_values_match_settings():
             continue
 
         # For tuple/list values, widget might convert to tuple
-        if isinstance(current_value, list) and hasattr(widget, 'value'):
-            assert widget.value == tuple(current_value) or widget.value == current_value
+        if isinstance(current_value, list) and hasattr(widget, "value"):
+            assert (
+                widget.value == tuple(current_value)
+                or widget.value == current_value
+            )
         else:
             assert widget.value == current_value
 
@@ -118,8 +133,12 @@ def test_grouping_functionality():
     container = SettingsContainer()
 
     # Check that we have widgets for different groups
-    canvas_widgets = [key for key in container._widgets if key.startswith("Canvas.")]
-    reader_widgets = [key for key in container._widgets if key.startswith("Reader.")]
+    canvas_widgets = [
+        key for key in container._widgets if key.startswith("Canvas.")
+    ]
+    reader_widgets = [
+        key for key in container._widgets if key.startswith("Reader.")
+    ]
 
     # Should have widgets from multiple groups
     if hasattr(container.settings, "Canvas"):
@@ -133,6 +152,7 @@ def test_widget_container_with_custom_settings(test_group_file):
     """Test widget creation with custom settings file."""
     # Create a Settings instance with the custom file
     from ndev_settings._settings import Settings
+
     custom_settings = Settings(str(test_group_file))
 
     # Verify the settings were loaded correctly
@@ -149,7 +169,9 @@ def test_settings_update_and_save():
     # Find a numeric widget to test with
     numeric_widget_key = None
     for key, widget in container._widgets.items():
-        if hasattr(widget, 'min') and hasattr(widget, 'max'):  # Likely a numeric widget
+        if hasattr(widget, "min") and hasattr(
+            widget, "max"
+        ):  # Likely a numeric widget
             numeric_widget_key = key
             break
 
@@ -173,3 +195,41 @@ def test_settings_update_and_save():
         # Reset for other tests
         widget.value = original_value
         container._update_settings()
+
+
+def test_reset_to_defaults():
+    """Test that the reset to defaults button resets all settings and updates widgets."""
+    container = SettingsContainer()
+
+    settings = container.settings
+
+    # Change some settings via widgets
+    if "Canvas.canvas_scale" in container._widgets:
+        widget = container._widgets["Canvas.canvas_scale"]
+        original_value = settings.Canvas.canvas_scale
+        widget.value = original_value + 3.0
+        container._update_settings()
+        assert settings.Canvas.canvas_scale == original_value + 3.0
+
+    if "Reader.clear_layers_on_new_scene" in container._widgets:
+        widget = container._widgets["Reader.clear_layers_on_new_scene"]
+        original_value = settings.Reader.clear_layers_on_new_scene
+        widget.value = not original_value
+        container._update_settings()
+        assert settings.Reader.clear_layers_on_new_scene == (
+            not original_value
+        )
+
+    # Now reset to defaults
+    container._reset_to_defaults()
+    # Verify settings are back to defaults
+    assert (
+        settings.Canvas.canvas_scale
+        == settings._grouped_settings["Canvas"]["canvas_scale"]["default"]
+    )
+    assert (
+        settings.Reader.clear_layers_on_new_scene
+        == settings._grouped_settings["Reader"]["clear_layers_on_new_scene"][
+            "default"
+        ]
+    )
