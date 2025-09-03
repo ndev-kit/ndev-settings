@@ -1,5 +1,5 @@
 from magicclass.widgets import GroupBoxContainer
-from magicgui.widgets import Container, Widget, create_widget
+from magicgui.widgets import Container, PushButton, Widget, create_widget
 
 from ndev_settings import get_settings
 
@@ -96,10 +96,15 @@ class SettingsContainer(Container):
 
         self.extend(containers)
 
+        self._reset_button = PushButton(text="Reset to Defaults")
+        self.append(self._reset_button)
+
     def _connect_events(self):
         """Connect all widget events to the update handler."""
         for widget in self._widgets.values():
             widget.changed.connect(self._update_settings)
+
+        self._reset_button.clicked.connect(self._reset_to_defaults)
 
     def _update_settings(self):
         """Update settings when any widget value changes."""
@@ -116,3 +121,13 @@ class SettingsContainer(Container):
 
         # Save all changes to file after updating all widgets
         self.settings.save()
+
+    def _reset_to_defaults(self):
+        """Reset all settings to their default values."""
+        self.settings.reset_to_default()
+
+        self.clear()  # clear the widgets inside the container
+        self._widgets.clear()  # clear the stored widget references
+
+        self._init_widgets()
+        self._connect_events()
