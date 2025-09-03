@@ -5,21 +5,19 @@ Canvas:
     min: 0.1
     tooltip: Scales exported figures and screenshots by this value
     value: 1.0
-  canvas_size:
-    default: &id001 !!python/tuple
-    - 1024
-    - 1024
-    tooltip: Height x width of the canvas when exporting a screenshot
-    value: *id001
   override_canvas_size:
     default: false
     tooltip: Whether to override the canvas size when exporting canvas screenshot
     value: false
-Reader:
-  clear_layers_on_new_scene:
-    default: false
-    tooltip: Whether to clear the viewer when selecting a new scene
-    value: false
+  canvas_size:
+    default: !!python/tuple
+    - 1024
+    - 1024
+    tooltip: Height x width of the canvas when exporting a screenshot
+    value: !!python/tuple
+    - 1024
+    - 1024
+ndevio_Reader:
   preferred_reader:
     default: bioio-ome-tiff
     dynamic_choices:
@@ -34,7 +32,11 @@ Reader:
     - View First Scene Only
     default: Open Scene Widget
     tooltip: How to handle files with multiple scenes
-    value: Open Scene Widget
+    value: View First Scene Only
+  clear_layers_on_new_scene:
+    default: false
+    tooltip: Whether to clear the viewer when selecting a new scene
+    value: false
   unpack_channels_as_layers:
     default: true
     tooltip: Whether to unpack channels as layers

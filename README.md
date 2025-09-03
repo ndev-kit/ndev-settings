@@ -51,25 +51,46 @@ External libraries can provide their settings in YAML format with the same struc
 **Step 1**: Create a YAML file in the external library (e.g., `ndevio_settings.yaml`):
 
 ```yaml
-Reader:
+ndevio_Reader:
   preferred_reader:
     default: bioio-ome-tiff
-    description: Preferred reader to use when opening images
-    value: bioio-ome-tiff
     dynamic_choices:
-      provider: "bioio.readers"
-      fallback_message: "No bioio readers available"
-  auto_detect_reader:
-    default: true
-    description: Automatically detect the best reader for each file type
-    value: true
+      fallback_message: No readers found
+      provider: bioio.readers
+    tooltip: Preferred reader to use when opening images
+    value: bioio-ome-tiff
+  scene_handling:
+    choices:
+    - Open Scene Widget
+    - View All Scenes
+    - View First Scene Only
+    default: Open Scene Widget
+    tooltip: How to handle files with multiple scenes
+    value: View First Scene Only
+  clear_layers_on_new_scene:
+    default: false
+    tooltip: Whether to clear the viewer when selecting a new scene
+    value: false
 
-Export:
-  compression_level:
-    default: medium
-    description: Default compression level for lossy image formats
-    value: medium
-    choices: [none, low, medium, high, maximum]
+ndevio_Export:
+  canvas_scale:
+    default: 1.0
+    max: 100.0
+    min: 0.1
+    tooltip: Scales exported figures and screenshots by this value
+    value: 1.0
+  override_canvas_size:
+    default: false
+    tooltip: Whether to override the canvas size when exporting canvas screenshot
+    value: false
+  canvas_size:
+    default: !!python/tuple
+    - 1024
+    - 1024
+    tooltip: Height x width of the canvas when exporting a screenshot
+    value: !!python/tuple
+    - 1024
+    - 1024
 ```
 
 **Step 2**: Create a function to provide the YAML path:
