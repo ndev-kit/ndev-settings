@@ -2,41 +2,56 @@ Group_A:
   setting_A:
     value: 42
     default: 0
-    description: "An integer setting in Group A"
+    tooltip: An integer setting in Group A
   setting_B:
     value: "custom_option"
     default: "default_option"
-    description: "A choice setting in Group A"
+    tooltip: "A choice setting in Group A"
     choices: ["default_option", "custom_option", "another_option"]
   setting_C:
     value: true
     default: false
-    description: "A boolean setting in Group A"
+    tooltip: "A boolean setting in Group A"
   setting_D:
     value: [1, 2, 3]
     default: [0, 0, 0]
-    description: "A list setting in Group A"
+    tooltip: "A list setting in Group A"
   setting_E:
     value: 3.14
     default: 1.0
-    description: "A float setting in Group A"
+    tooltip: "A float setting in Group A"
   setting_F:
     value: "Some text"
     default: "Default text"
-    description: "A string setting in Group A"
+    tooltip: "A string setting in Group A"
   setting_G:
+    value: !!python/tuple
+    - 10
+    - 20
+    default: !!python/tuple
+    - 0
+    - 0
+    tooltip: "A tuple setting in Group A"
+  setting_H:
+    default: bioio-ome-tiff
+    dynamic_choices:
+      fallback_message: No readers found
+      provider: bioio.readers
+    tooltip: Preferred reader to use when opening images
+    value: bioio-ome-tiff
+
 
 Group_B:
   setting_H:
     value: 100
     default: 50
-    description: "An integer setting in Group B"
+    tooltip: "An integer setting in Group B"
   setting_I:
     value: "option2"
     default: "option1"
-    description: "A choice setting in Group B"
+    tooltip: "A choice setting in Group B"
     choices: ["option1", "option2", "option3"]
   setting_J:
     value: false
     default: true
-    description: "A boolean setting in Group B"
+    tooltip: "A boolean setting in Group B"
