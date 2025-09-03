@@ -352,9 +352,11 @@ class TestErrorHandling:
         assert settings.Group_A.setting_int == 49
 
 
-def test_dynamic_choices():
+def test_dynamic_choices(empty_settings_file):
     """Test that dynamic choices method exists and doesn't crash."""
-    settings = Settings.__new__(Settings)  # Create without calling __init__
+    settings = Settings(
+        str(empty_settings_file)
+    )  # Create without calling __init__
 
     # Test the method exists and handles missing entry points gracefully
     choices = settings._get_dynamic_choices("nonexistent.entry.point")
