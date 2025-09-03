@@ -235,32 +235,56 @@ class TestExternalContributions:
             yaml.dump(external2_data, default_flow_style=False)
         )
 
-        # Mock multiple entry points
-        def external1_provider():
-            return str(external1_file)
-
-        def external2_provider():
-            return str(external2_file)
-
+        # Mock multiple entry points using napari-style resource paths
         class MockEntryPoint:
-            def __init__(self, name, load_func):
+            def __init__(
+                self, name, package_name, resource_name, resource_path
+            ):
                 self.name = name
-                self._load_func = load_func
-
-            def load(self):
-                return self._load_func
+                self.value = f"{package_name}:{resource_name}"
+                self._resource_path = resource_path
 
         def mock_entry_points(group=None):
-            if group == "ndev_settings.yaml_providers":
+            if group == "ndev_settings.manifest":
                 return [
-                    MockEntryPoint("external1", external1_provider),
-                    MockEntryPoint("external2", external2_provider),
+                    MockEntryPoint(
+                        "external1",
+                        "mock_package1",
+                        "settings.yaml",
+                        external1_file,
+                    ),
+                    MockEntryPoint(
+                        "external2",
+                        "mock_package2",
+                        "settings.yaml",
+                        external2_file,
+                    ),
                 ]
             return []
 
+        # Mock importlib.resources.files to return our test files
+        def mock_files(package_name):
+            class MockPath:
+                def __truediv__(self, resource_name):
+                    if (
+                        package_name == "mock_package1"
+                        and resource_name == "settings.yaml"
+                    ):
+                        return external1_file
+                    elif (
+                        package_name == "mock_package2"
+                        and resource_name == "settings.yaml"
+                    ):
+                        return external2_file
+                    return tmp_path / resource_name
+
+            return MockPath()
+
+        # Apply patches
         monkeypatch.setattr(
             "ndev_settings._settings.entry_points", mock_entry_points
         )
+        monkeypatch.setattr("importlib.resources.files", mock_files)
 
         # Load settings
         settings = Settings(str(test_settings_file))
@@ -279,8 +303,17 @@ class TestExternalContributions:
 class TestErrorHandling:
     """Test error handling for various edge cases."""
 
-    def test_missing_file_handling(self, empty_settings_file):
+    def test_missing_file_handling(self, empty_settings_file, monkeypatch):
         """Test that missing files are handled gracefully."""
+
+        # Mock entry points to return empty list (no external contributions)
+        def mock_entry_points(group=None):
+            return []
+
+        monkeypatch.setattr(
+            "ndev_settings._settings.entry_points", mock_entry_points
+        )
+
         settings = Settings(str(empty_settings_file))
 
         # Should create empty settings without crashing
@@ -292,20 +325,19 @@ class TestErrorHandling:
     ):
         """Test that broken external entry points don't crash the system."""
 
-        def broken_provider():
-            raise ImportError("Broken external library")
-
         class MockEntryPoint:
-            def __init__(self, name, load_func):
+            def __init__(self, name, value):
                 self.name = name
-                self._load_func = load_func
-
-            def load(self):
-                return self._load_func
+                self.value = value  # This will cause import error
 
         def mock_entry_points(group=None):
-            if group == "ndev_settings.yaml_providers":
-                return [MockEntryPoint("broken", broken_provider)]
+            if group == "ndev_settings.manifest":
+                # Create an entry point with a non-existent package
+                return [
+                    MockEntryPoint(
+                        "broken", "nonexistent_package:settings.yaml"
+                    )
+                ]
             return []
 
         monkeypatch.setattr(
