@@ -1,12 +1,5 @@
 from magicclass.widgets import GroupBoxContainer
-from magicgui.widgets import (
-    CheckBox,
-    ComboBox,
-    Container,
-    FloatSpinBox,
-    TupleEdit,
-    Widget,
-)
+from magicgui.widgets import Container, Widget, create_widget
 
 from ndev_settings import get_settings
 
@@ -33,13 +26,33 @@ class SettingsContainer(Container):
         choices = self.settings._get_dynamic_choices(provider)
         return choices if choices else [fallback_message], fallback_message
 
-
-    def _create_widget_for_setting(self, group_obj, name: str, info: dict) -> Widget | None:
+    def _create_widget_for_setting(
+        self, group_obj, name: str, info: dict
+    ) -> Widget | None:
         """Create appropriate widget for a setting based on its metadata."""
         default_value = getattr(group_obj, name)
-        description = info.get("description", "")
+        label = name.replace("_", " ").title()
 
-        # Handle dynamic choices first
+        widget_type = "ComboBox" if "dynamic_choices" in info else None
+
+        # Separate create_widget args from widget options
+        create_widget_args = {
+            "value": default_value,
+            "label": label,
+            "widget_type": widget_type,
+        }
+
+        # Widget options (things that get passed to the widget constructor)
+        widget_options = {}
+
+        # Add YAML parameters, separating create_widget args from widget options
+        for key, value in info.items():
+            if key in ["default", "value", "tooltip", "dynamic_choices"]:
+                continue
+            else:
+                widget_options[key] = value
+
+        # Handle dynamic choices
         if "dynamic_choices" in info:
             choices, fallback_message = self._get_dynamic_choices(info)
             choices_available = choices != [fallback_message]
@@ -47,51 +60,16 @@ class SettingsContainer(Container):
                 default_value if default_value in choices else choices[0]
             )
 
-            tooltip = description
-            if not choices_available:
-                tooltip += f"\n{fallback_message}"
-            elif "dynamic_choices" in info:
-                tooltip += "\nIf the selection is not available, it will attempt to fallback to the next available working option."
-
-            return ComboBox(
-                label=name.replace("_", " ").title(),
-                value=current_value,
-                choices=choices,
-                tooltip=tooltip,
-                enabled=choices_available,
+            create_widget_args["value"] = current_value
+            widget_options.update(
+                {"choices": choices, "enabled": choices_available}
             )
 
-        # Handle static choices
-        if "choices" in info:
-            return ComboBox(
-                label=name.replace("_", " ").title(),
-                value=default_value,
-                choices=info["choices"],
-                tooltip=description,
-            )
-        elif isinstance(default_value, bool):
-            return CheckBox(
-                label=name.replace("_", " ").title(),
-                value=default_value,
-                tooltip=description,
-            )
-        elif isinstance(default_value, int | float):
-            return FloatSpinBox(
-                label=name.replace("_", " ").title(),
-                value=float(default_value),
-                min=info.get("min", 0.0),
-                max=info.get("max", 1000.0),
-                step=info.get("step", 1.0),
-                tooltip=description,
-            )
-        elif isinstance(default_value, tuple):
-            return TupleEdit(
-                label=name.replace("_", " ").title(),
-                value=default_value,
-                tooltip=description,
-            )
+        # Pass options as a single parameter if we have any
+        if widget_options:
+            create_widget_args["options"] = widget_options
 
-        return None
+        return create_widget(**create_widget_args)
 
     def _init_widgets(self):
         """Initialize all widgets dynamically based on registered settings."""
@@ -100,7 +78,9 @@ class SettingsContainer(Container):
 
         for group_name, settings_dict in groups.items():
             group_widgets = []
-            group_obj = getattr(self.settings, group_name)  # Assume group always exists
+            group_obj = getattr(
+                self.settings, group_name
+            )  # Assume group always exists
 
             for setting_name, setting_data in settings_dict.items():
                 widget = self._create_widget_for_setting(
@@ -119,20 +99,20 @@ class SettingsContainer(Container):
                 containers.append(container)
 
         self.extend(containers)
-        self.native.layout().addStretch()
 
     def _connect_events(self):
         """Connect all widget events to the update handler."""
         for widget in self._widgets.values():
             widget.changed.connect(self._update_settings)
 
-
     def _update_settings(self):
         """Update settings when any widget value changes."""
         for key, widget in self._widgets.items():
             # key is now "Group.Setting"
             group_name, setting_name = key.split(".", 1)
-            group_obj = getattr(self.settings, group_name)  # Assume group always exists
+            group_obj = getattr(
+                self.settings, group_name
+            )  # Assume group always exists
 
             if hasattr(widget, "enabled") and not widget.enabled:
                 continue

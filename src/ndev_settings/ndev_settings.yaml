@@ -1,33 +1,33 @@
 Canvas:
   canvas_scale:
     default: 1.0
-    description: Scales exported figures and screenshots by this value
     max: 100.0
     min: 0.1
+    tooltip: Scales exported figures and screenshots by this value
     value: 1.0
   canvas_size:
     default: !!python/tuple
     - 1024
     - 1024
-    description: Height x width of the canvas when exporting a screenshot
+    tooltip: Height x width of the canvas when exporting a screenshot
     value: !!python/tuple
     - 1024
     - 1024
   override_canvas_size:
     default: false
-    description: Whether to override the canvas size when exporting canvas screenshot
+    tooltip: Whether to override the canvas size when exporting canvas screenshot
     value: false
 Reader:
   clear_layers_on_new_scene:
     default: false
-    description: Whether to clear the viewer when selecting a new scene
+    tooltip: Whether to clear the viewer when selecting a new scene
     value: false
   preferred_reader:
     default: bioio-ome-tiff
-    description: Preferred reader to use when opening images
     dynamic_choices:
       fallback_message: No readers found
       provider: bioio.readers
+    tooltip: Preferred reader to use when opening images
     value: bioio-ome-tiff
   scene_handling:
     choices:
@@ -35,9 +35,9 @@ Reader:
     - View All Scenes
     - View First Scene Only
     default: Open Scene Widget
-    description: How to handle files with multiple scenes
+    tooltip: How to handle files with multiple scenes
     value: Open Scene Widget
   unpack_channels_as_layers:
     default: true
-    description: Whether to unpack channels as layers
+    tooltip: Whether to unpack channels as layers
     value: true
