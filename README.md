@@ -96,7 +96,7 @@ ndevio_Export:
 **Step 2**: Register the entry point in `pyproject.toml`:
 
 ```toml
-[project.entry-points."ndev_settings.yaml_providers"]
+[project.entry-points."ndev_settings.manifest"]
 ndevio = "ndevio:ndev_settings.yaml"
 ```
 

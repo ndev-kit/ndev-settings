@@ -1,5 +1,4 @@
 from importlib.metadata import entry_points
-from pathlib import Path
 
 import yaml
 
@@ -111,58 +110,32 @@ class Settings:
     def _load_external_yaml_files(self) -> dict:
         """Load external YAML files from other packages via entry points."""
         all_external_settings = {}
+        print("Loading external YAML files...")
         try:
             # Look for entry points that provide YAML file paths
-            for entry_point in entry_points(
-                group="ndev_settings.yaml_providers"
-            ):
+            for entry_point in entry_points(group="ndev_settings.manifest"):
                 try:
                     # Support napari-style resource paths (e.g., "package:file.yaml")
-                    entry_value = entry_point.value
-                    if ":" in entry_value and not entry_value.endswith(")"):
-                        # This looks like a resource path (package:file.yaml)
-                        package_name, resource_name = entry_value.split(":", 1)
-                        try:
-                            # Try using importlib.resources (Python 3.9+)
-                            try:
-                                from importlib.resources import files
+                    entry_value = getattr(entry_point, "value", None)
+                    package_name, resource_name = entry_value.split(":", 1)
 
-                                yaml_path = str(
-                                    files(package_name) / resource_name
-                                )
-                            except ImportError:
-                                # Fallback for older Python versions
-                                from importlib.resources import path
+                    from importlib.resources import files
 
-                                with path(package_name, resource_name) as p:
-                                    yaml_path = str(p)
-                        except (ImportError, FileNotFoundError):
-                            # Fallback: assume it's in the package directory
-                            import importlib
-
-                            module = importlib.import_module(package_name)
-                            if module.__file__:
-                                package_dir = Path(module.__file__).parent
-                                yaml_path = str(package_dir / resource_name)
-                            else:
-                                continue  # Skip if we can't find the module file
-                    else:
-                        # Standard callable entry point
-                        yaml_path_func = entry_point.load()
-                        yaml_path = yaml_path_func()
-
-                    if Path(yaml_path).exists():
-                        external_settings = self._load_yaml_file(yaml_path)
-                        # Merge with all external settings
-                        for (
-                            group_name,
-                            group_settings,
-                        ) in external_settings.items():
-                            if group_name not in all_external_settings:
-                                all_external_settings[group_name] = {}
-                            all_external_settings[group_name].update(
-                                group_settings
-                            )
+                    yaml_path = str(files(package_name) / resource_name)
+                    print(
+                        f"  - Loading from {yaml_path} (entry point: {entry_point.name})"
+                    )
+                    external_settings = self._load_yaml_file(yaml_path)
+                    # Merge with all external settings
+                    for (
+                        group_name,
+                        group_settings,
+                    ) in external_settings.items():
+                        if group_name not in all_external_settings:
+                            all_external_settings[group_name] = {}
+                        all_external_settings[group_name].update(
+                            group_settings
+                        )
                 except (
                     ImportError,
                     AttributeError,
