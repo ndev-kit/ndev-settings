@@ -155,56 +155,21 @@ class Settings:
 
     def save(self):
         """Save the current state of all settings to the YAML file, preserving original order."""
-        settings_data = {}
-
-        # Use _grouped_settings to preserve the original order
-        if hasattr(self, "_grouped_settings"):
-            for group_name, group_settings in self._grouped_settings.items():
-                # Get the current group object
-                if hasattr(self, group_name):
-                    group_obj = getattr(self, group_name)
-                    if isinstance(group_obj, SettingsGroup):
-                        group_dict = {}
-
-                        # Preserve the original setting order within each group
-                        for (
-                            setting_name,
-                            original_meta,
-                        ) in group_settings.items():
-                            if hasattr(group_obj, setting_name):
-                                current_value = getattr(
-                                    group_obj, setting_name
-                                )
-                                # Preserve all original metadata, just update the value
-                                meta = original_meta.copy()
-                                meta["value"] = current_value
-                                group_dict[setting_name] = meta
-
-                        settings_data[group_name] = group_dict
-        else:
-            # Fallback to the old method if _grouped_settings is not available
-            for attr_name in dir(self):
-                if attr_name.startswith("_") or callable(
-                    getattr(self, attr_name)
-                ):
-                    continue
-                group_obj = getattr(self, attr_name)
+        # Update the _grouped_settings values from the current group objects
+        for group_name, group_settings in self._grouped_settings.items():
+            if hasattr(self, group_name):
+                group_obj = getattr(self, group_name)
                 if isinstance(group_obj, SettingsGroup):
-                    group_dict = {}
-                    for setting_name in dir(group_obj):
-                        if setting_name.startswith("_") or callable(
-                            getattr(group_obj, setting_name)
-                        ):
-                            continue
-                        value = getattr(group_obj, setting_name)
-                        group_dict[setting_name] = {
-                            "value": value,
-                            "default": value,
-                            "description": f"Setting {setting_name}",
-                        }
-                    settings_data[attr_name] = group_dict
+                    for setting_name in group_settings:
+                        if hasattr(group_obj, setting_name):
+                            current_value = getattr(group_obj, setting_name)
+                            # Update the value in place
+                            self._grouped_settings[group_name][setting_name][
+                                "value"
+                            ] = current_value
 
-        self._save_settings_file(settings_data)
+        # Save the updated _grouped_settings directly
+        self._save_settings_file(self._grouped_settings)
 
     def _save_settings_file(self, settings_data):
         """Helper to save settings data to file."""
