@@ -96,7 +96,8 @@ class Settings:
             setattr(self, group_name, group_obj)
 
         self._grouped_settings = all_settings
-        self.save()  # Save to ensure all settings (including externals) are persisted
+        # Don't auto-save during load - only save when explicitly requested
+        # This prevents modifying files during testing and keeps loading fast
 
     def _load_yaml_file(self, yaml_path: str) -> dict:
         """Load a single YAML settings file."""
@@ -117,6 +118,12 @@ class Settings:
                 try:
                     # Support napari-style resource paths (e.g., "package:file.yaml")
                     entry_value = getattr(entry_point, "value", None)
+                    if not entry_value or ":" not in entry_value:
+                        print(
+                            f"Warning: Entry point {entry_point.name} has invalid format: {entry_value}"
+                        )
+                        continue
+
                     package_name, resource_name = entry_value.split(":", 1)
 
                     from importlib.resources import files
