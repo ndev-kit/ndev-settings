@@ -49,11 +49,8 @@ class Settings:
 
     def _get_dynamic_choices(self, provider_key: str) -> list:
         """Get dynamic choices from entry points."""
-        try:
-            entries = entry_points(group=provider_key)
-            return [entry.name for entry in entries]
-        except (ImportError, AttributeError, ValueError):
-            return []
+        entries = entry_points(group=provider_key)
+        return [entry.name for entry in entries]
 
     def load(self):
         """Load settings from main file, external YAML files, and entry points."""
@@ -102,45 +99,35 @@ class Settings:
     def _load_external_yaml_files(self) -> dict:
         """Load external YAML files from other packages via entry points."""
         all_external_settings = {}
-        try:
-            # Look for entry points that provide YAML file paths
-            for entry_point in entry_points(group="ndev_settings.manifest"):
-                try:
-                    # Support napari-style resource paths (e.g., "package:file.yaml")
-                    entry_value = getattr(entry_point, "value", None)
-                    if not entry_value or ":" not in entry_value:
-                        print(
-                            f"Warning: Entry point {entry_point.name} has invalid format: {entry_value}"
-                        )
-                        continue
+        # Look for entry points that provide YAML file paths
+        for entry_point in entry_points(group="ndev_settings.manifest"):
+            try:
+                # Support napari-style resource paths (e.g., "package:file.yaml")
+                entry_value = entry_point.value
 
-                    package_name, resource_name = entry_value.split(":", 1)
+                package_name, resource_name = entry_value.split(":", 1)
 
-                    from importlib.resources import files
+                from importlib.resources import files
 
-                    yaml_path = str(files(package_name) / resource_name)
-                    external_settings = self._load_yaml_file(yaml_path)
-                    # Merge with all external settings
-                    for (
-                        group_name,
-                        group_settings,
-                    ) in external_settings.items():
-                        if group_name not in all_external_settings:
-                            all_external_settings[group_name] = {}
-                        all_external_settings[group_name].update(
-                            group_settings
-                        )
-                except (
-                    ImportError,
-                    AttributeError,
-                    TypeError,
-                    ValueError,
-                ) as e:
-                    print(
-                        f"Warning: Failed to load YAML settings from {entry_point.name}: {e}"
-                    )
-        except (ImportError, AttributeError):
-            pass
+                yaml_path = str(files(package_name) / resource_name)
+                external_settings = self._load_yaml_file(yaml_path)
+                # Merge with all external settings
+                for (
+                    group_name,
+                    group_settings,
+                ) in external_settings.items():
+                    if group_name not in all_external_settings:
+                        all_external_settings[group_name] = {}
+                    all_external_settings[group_name].update(group_settings)
+            except (
+                ModuleNotFoundError,
+                FileNotFoundError,
+                AttributeError,
+                ValueError,
+            ) as e:
+                print(
+                    f"Failed to load external settings from entry point '{entry_point.name}': {e}"
+                )
 
         return all_external_settings
 

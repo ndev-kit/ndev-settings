@@ -34,3 +34,7 @@ Group_A:
     - another_option
     - yet_another_option
     - custom_option2
+  external_only_setting:
+    value: added by external
+    default: default value
+    tooltip: This setting only exists in external contribution, should be merged into Group_A

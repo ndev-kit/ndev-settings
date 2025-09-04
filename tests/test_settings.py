@@ -175,6 +175,16 @@ class TestExternalContributions:
         assert hasattr(settings, "External_Contribution")
         assert settings.External_Contribution.setting_int == 10
 
+    def test_external_adds_new_setting_to_existing_group(
+        self, test_settings_file, mock_external_contributions
+    ):
+        """Test that external contributions can add new settings to existing groups."""
+        settings = Settings(str(test_settings_file))
+
+        # Group_A exists in main file, but external file adds a new setting to it
+        assert hasattr(settings.Group_A, "external_only_setting")
+        assert settings.Group_A.external_only_setting == "added by external"
+
     def test_external_settings_can_be_modified(
         self, test_settings_file, mock_external_contributions
     ):

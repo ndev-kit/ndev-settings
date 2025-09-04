@@ -14,9 +14,7 @@ class SettingsContainer(Container):
 
     def _get_dynamic_choices(self, setting_info: dict) -> tuple[list, str]:
         """Get dynamic choices for a setting if configured."""
-        dynamic_config = setting_info.get("dynamic_choices")
-        if not dynamic_config:
-            return [], ""
+        dynamic_config = setting_info["dynamic_choices"]
 
         provider = dynamic_config.get("provider", "")
         fallback_message = dynamic_config.get(
