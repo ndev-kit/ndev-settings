@@ -13,7 +13,7 @@ Reusable settings and customization widget for the ndev-kit
 
 ----------------------------------
 
-This [napari] plugin was generated with [copier] using the [napari-plugin-template] (None).
+This [napari] plugin was generated with [copier] using the [napari-plugin-template] v1.1.0.
 
 <!--
 Don't miss the full getting started guide to set up your new package:
