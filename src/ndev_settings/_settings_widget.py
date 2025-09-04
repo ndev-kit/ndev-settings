@@ -1,150 +1,131 @@
-from importlib.metadata import entry_points
-
 from magicclass.widgets import GroupBoxContainer
-from magicgui.widgets import (
-    CheckBox,
-    ComboBox,
-    Container,
-    FloatSpinBox,
-    TupleEdit,
-)
+from magicgui.widgets import Container, PushButton, Widget, create_widget
 
-from ndev_settings._settings import get_settings
+from ndev_settings import get_settings
 
 
 class SettingsContainer(Container):
     def __init__(self):
         super().__init__(labels=False)
         self.settings = get_settings()
-        self._available_readers = [
-            reader.name for reader in entry_points(group="bioio.readers")
-        ]
-        if not self._available_readers:
-            self._available_readers = ["No readers found"]
-            self._preferred_reader = "No readers found"
-            self._readers_available = False
-        else:
-            self._preferred_reader = (
-                self.settings.PREFERRED_READER
-                if self.settings.PREFERRED_READER in self._available_readers
-                else self._available_readers[0]
-            )
-            self._readers_available = True
-
+        self._widgets = {}  # Store references to dynamically created widgets
         self._init_widgets()
         self._connect_events()
 
-    def _init_widgets(self):
-        self._preferred_reader_combo = ComboBox(
-            label="Preferred Reader",
-            value=self._preferred_reader,
-            choices=self._available_readers,
-            tooltip="Preferred reader to use when opening images. \n"
-            "If the reader is not available, it will attempt to fallback \n"
-            "to the next available working reader.",
-            enabled=self._readers_available,
-        )
-        self._scene_handling_combo = ComboBox(
-            label="Multi-Scene Handling",
-            value=self.settings.SCENE_HANDLING,
-            choices=[
-                "Open Scene Widget",
-                "View All Scenes",
-                "View First Scene Only",
-            ],
-            tooltip="How to handle files with multiple-scenes, by default \n"
-            "opens a widget to select the scenes to open. \n"
-            'If "View All Scenes" then the scenes will be added as a slider \n'
-            "dimension in the viewer.",
-        )
-        self._unpack_channels_as_layers_checkbox = CheckBox(
-            value=self.settings.UNPACK_CHANNELS_AS_LAYERS,
-            label="Unpack Channels as Layers",
-            tooltip="Whether to unpack channels as layers.",
-        )
-        self._clear_on_scene_select_checkbox = CheckBox(
-            value=self.settings.CLEAR_LAYERS_ON_NEW_SCENE,
-            label="Clear All Layers On New Scene Selection",
-            tooltip="Whether to clear the viewer when selecting a new scene.",
-        )
-        self._bioio_settings_container = GroupBoxContainer(
-            name="Reader Settings",
-            widgets=[
-                self._preferred_reader_combo,
-                self._scene_handling_combo,
-                self._clear_on_scene_select_checkbox,
-                self._unpack_channels_as_layers_checkbox,
-            ],
-            layout="vertical",
+    def _get_dynamic_choices(self, setting_info: dict) -> tuple[list, str]:
+        """Get dynamic choices for a setting if configured."""
+        dynamic_config = setting_info["dynamic_choices"]
+
+        provider = dynamic_config.get("provider", "")
+        fallback_message = dynamic_config.get(
+            "fallback_message", "No choices available"
         )
 
-        self._canvas_scale_slider = FloatSpinBox(
-            label="Canvas Scale",
-            value=self.settings.CANVAS_SCALE,
-            min=0.01,
-            max=100.0,
-            step=1.0,
-            tooltip="Scales exported figures and screenshots by this value.",
-        )
-        self._override_canvas_size_checkbox = CheckBox(
-            value=self.settings.OVERRIDE_CANVAS_SIZE,
-            label="Override Canvas Size",
-            tooltip="Whether to override the canvas size when exporting canvas screenshot.",
-        )
-        self._canvas_size_tuple = TupleEdit(
-            value=self.settings.CANVAS_SIZE,
-            label="Canvas Size",
-            tooltip="Height x width of the canvas when exporting a screenshot."
-            ' Only used if "Override Canvas Size" is checked.',
-        )
-        self._export_settings_container = GroupBoxContainer(
-            name="Export Settings",
-            widgets=[
-                self._canvas_scale_slider,
-                self._override_canvas_size_checkbox,
-                self._canvas_size_tuple,
-            ],
-            layout="vertical",
-        )
+        choices = self.settings._get_dynamic_choices(provider)
+        return choices if choices else [fallback_message], fallback_message
 
-        self.extend(
-            [self._bioio_settings_container, self._export_settings_container]
-        )
-        self.native.layout().addStretch()
+    def _create_widget_for_setting(
+        self, group_obj, name: str, info: dict
+    ) -> Widget | None:
+        """Create appropriate widget for a setting based on its metadata."""
+        init_value = getattr(group_obj, name)
+        label = name.replace("_", " ").title()
 
-    def _connect_events(self):
-        self._preferred_reader_combo.changed.connect(self._update_settings)
-        self._scene_handling_combo.changed.connect(self._update_settings)
-        self._clear_on_scene_select_checkbox.changed.connect(
-            self._update_settings
-        )
-        self._unpack_channels_as_layers_checkbox.changed.connect(
-            self._update_settings
-        )
-        self._canvas_scale_slider.changed.connect(self._update_settings)
-        self._override_canvas_size_checkbox.changed.connect(
-            self._update_settings
-        )
-        self._canvas_size_tuple.changed.connect(self._update_settings)
-
-    def _update_settings(self):
-        self._preferred_reader = self._preferred_reader_combo.value
-        widget_to_setting = {
-            "PREFERRED_READER": self._preferred_reader_combo,
-            "SCENE_HANDLING": self._scene_handling_combo,
-            "CLEAR_LAYERS_ON_NEW_SCENE": self._clear_on_scene_select_checkbox,
-            "UNPACK_CHANNELS_AS_LAYERS": self._unpack_channels_as_layers_checkbox,
-            "CANVAS_SCALE": self._canvas_scale_slider,
-            "OVERRIDE_CANVAS_SIZE": self._override_canvas_size_checkbox,
-            "CANVAS_SIZE": self._canvas_size_tuple,
+        # Separate create_widget args from widget options
+        create_widget_args = {
+            "value": init_value,
+            "label": label,
+            "widget_type": "ComboBox" if "dynamic_choices" in info else None,
         }
 
-        for setting_name, widget in widget_to_setting.items():
-            # Only update PREFERRED_READER if readers are available
-            if (
-                setting_name == "PREFERRED_READER"
-                and not self._readers_available
-            ):
+        # Widget options (things that get passed to the widget constructor)
+        widget_options = {}
+
+        # Add YAML parameters, separating create_widget args from widget options
+        for key, value in info.items():
+            if key in ["default", "value", "tooltip", "dynamic_choices"]:
                 continue
-            # Note: settings are auto-saved on change
-            setattr(self.settings, setting_name, widget.value)
+            else:
+                widget_options[key] = value
+
+        # Handle dynamic choices
+        if "dynamic_choices" in info:
+            choices, fallback_message = self._get_dynamic_choices(info)
+            choices_available = choices != [fallback_message]
+            current_value = init_value if init_value in choices else choices[0]
+
+            create_widget_args["value"] = current_value
+            widget_options.update(
+                {"choices": choices, "enabled": choices_available}
+            )
+
+        # Pass options as a single parameter if we have any
+        if widget_options:
+            create_widget_args["options"] = widget_options
+
+        return create_widget(**create_widget_args)
+
+    def _init_widgets(self):
+        """Initialize all widgets dynamically based on registered settings."""
+        groups = self.settings._grouped_settings
+        containers = []
+
+        for group_name, settings_dict in groups.items():
+            group_widgets = []
+            group_obj = getattr(
+                self.settings, group_name
+            )  # Assume group always exists
+
+            for setting_name, setting_data in settings_dict.items():
+                widget = self._create_widget_for_setting(
+                    group_obj, setting_name, setting_data
+                )
+                if widget:
+                    self._widgets[f"{group_name}.{setting_name}"] = widget
+                    group_widgets.append(widget)
+
+            if group_widgets:
+                container = GroupBoxContainer(
+                    name=f"{group_name} Settings",
+                    widgets=group_widgets,
+                    layout="vertical",
+                )
+                containers.append(container)
+
+        self.extend(containers)
+
+        self._reset_button = PushButton(text="Reset to Defaults")
+        self.append(self._reset_button)
+
+    def _connect_events(self):
+        """Connect all widget events to the update handler."""
+        for widget in self._widgets.values():
+            widget.changed.connect(self._update_settings)
+
+        self._reset_button.clicked.connect(self._reset_to_defaults)
+
+    def _update_settings(self):
+        """Update settings when any widget value changes."""
+        for key, widget in self._widgets.items():
+            # key is now "Group.Setting"
+            group_name, setting_name = key.split(".", 1)
+            group_obj = getattr(
+                self.settings, group_name
+            )  # Assume group always exists
+
+            if hasattr(widget, "enabled") and not widget.enabled:
+                continue
+            setattr(group_obj, setting_name, widget.value)
+
+        # Save all changes to file after updating all widgets
+        self.settings.save()
+
+    def _reset_to_defaults(self):
+        """Reset all settings to their default values."""
+        self.settings.reset_to_default()
+
+        self.clear()  # clear the widgets inside the container
+        self._widgets.clear()  # clear the stored widget references
+
+        self._init_widgets()
+        self._connect_events()

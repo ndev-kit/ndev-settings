@@ -41,10 +41,11 @@ all = ["napari[all]"]
 
 [dependency-groups]
 testing = [
-    "tox",
+    "tox-uv",
     "pytest",  # https://docs.pytest.org/en/latest/contents.html
     "pytest-cov",  # https://pytest-cov.readthedocs.io/en/latest/
-    "napari[all]"
+    "pytest-qt",  # https://pytest-qt.readthedocs.io/en/latest/
+    "pyqt6",
 ]
 
 [project.entry-points."napari.manifest"]

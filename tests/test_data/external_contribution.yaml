@@ -1,0 +1,40 @@
+External_Contribution:
+  setting_int:
+    value: 10
+    default: 5
+    tooltip: An example integer setting
+  setting_choices:
+    value: option1
+    default: option2
+    tooltip: An example choice setting
+    choices:
+    - option1
+    - option2
+    - option3
+  setting_dynamic:
+    default: default choice
+    value: default choice
+    dynamic_choices:
+      fallback_message: No options available
+      provider: some.module.provider_function
+    tooltip: Example dynamic settings
+
+Group_A:
+  setting_int:
+    value: 35
+    default: 5
+    tooltip: An integer setting in Group A, mirroring the samples settings
+  setting_choices:
+    value: custom_option
+    default: default_option
+    tooltip: A choice setting in Group A, mirroring the samples settings, but with different choices
+    choices:
+    - default_option
+    - custom_option
+    - another_option
+    - yet_another_option
+    - custom_option2
+  external_only_setting:
+    value: added by external
+    default: default value
+    tooltip: This setting only exists in external contribution, should be merged into Group_A

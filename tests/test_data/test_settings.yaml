@@ -1,0 +1,63 @@
+Group_A:
+  setting_int:
+    default: 0
+    tooltip: An integer setting in Group A
+    value: 49
+  setting_choices:
+    choices:
+    - default_option
+    - custom_option
+    - another_option
+    default: default_option
+    tooltip: A choice setting in Group A
+    value: another_option
+  setting_bool:
+    default: false
+    tooltip: A boolean setting in Group A
+    value: true
+  setting_list:
+    default:
+    - 0
+    - 0
+    - 0
+    tooltip: A list setting in Group A
+    value:
+    - 1
+    - 2
+    - 3
+  setting_float:
+    default: 1.0
+    tooltip: A float setting in Group A
+    value: 3.14
+  setting_string:
+    default: Default text
+    tooltip: A string setting in Group A
+    value: Some text
+  setting_tuple:
+    default: !!python/tuple
+    - 0
+    - 0
+    tooltip: A tuple setting in Group A
+    value: !!python/tuple
+    - 10
+    - 20
+  setting_dynamic:
+    default: bioio-ome-tiff
+    dynamic_choices:
+      fallback_message: No readers found
+      provider: bioio.readers
+    tooltip: Preferred reader to use when opening images
+    value: bioio-ome-tiff
+Group_B:
+  setting_int:
+    default: 50
+    tooltip: An integer setting in Group B
+    value: 100
+  setting_choices:
+    choices:
+    - option1
+    - option2
+    - option3
+    default: option1
+    tooltip: A choice setting in Group B
+    value: option2
