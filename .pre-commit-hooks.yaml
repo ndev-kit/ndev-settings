@@ -1,0 +1,8 @@
+- id: reset-settings-values
+  name: Reset ndev-settings values to defaults
+  description: Resets all 'value' fields to their 'default' values in ndev-settings YAML files
+  entry: reset-settings-values
+  language: python
+  files: ndev_settings\.yaml$
+  pass_filenames: true
+  require_serial: true

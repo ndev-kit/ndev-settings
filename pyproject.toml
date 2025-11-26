@@ -51,6 +51,9 @@ testing = [
 [project.entry-points."napari.manifest"]
 ndev-settings = "ndev_settings:napari.yaml"
 
+[project.scripts]
+reset-settings-values = "ndev_settings._cli:main_reset_values"
+
 [project.urls]
 "Bug Tracker" = "https://github.com/ndev-kit/ndev-settings/issues"
 "Documentation" = "https://github.com/ndev-kit/ndev-settings#README.md"
