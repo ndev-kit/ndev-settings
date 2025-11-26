@@ -119,6 +119,19 @@ print(settings.Reader.preferred_reader)  # From ndevio
 print(settings.Export.compression_level)  # From ndevio
 ```
 
+## Pre-commit hook
+
+You can use the `reset-settings-values` pre-commit hook to reset all settings values
+to their defaults before committing. To do so, add the following to your
+`.pre-commit-config.yaml`:
+
+```yaml
+-   repo: https://github.com/ndev-kit/ndev-settings
+    rev: v0.3.0
+    hooks:
+      - id: reset-settings-values
+```
+
 ## Contributing
 
 Contributions are very welcome. Tests can be run with [tox], please ensure
