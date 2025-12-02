@@ -142,31 +142,39 @@ class TestSettingsSaveLoad:
         self, test_settings_file, monkeypatch
     ):
         """Test that second load uses cached settings file, not _load_defaults."""
-        # First load - discovers from files and saves
-        settings1 = Settings(str(test_settings_file))
+        from ndev_settings import _settings
 
-        # Track if _load_defaults is called on second load
-        load_defaults_called = False
+        # Track all calls to _load_defaults
+        load_defaults_call_count = 0
         original_load_defaults = Settings._load_defaults
 
         def tracking_load_defaults(self):
-            nonlocal load_defaults_called
-            load_defaults_called = True
+            nonlocal load_defaults_call_count
+            load_defaults_call_count += 1
             return original_load_defaults(self)
 
         monkeypatch.setattr(Settings, "_load_defaults", tracking_load_defaults)
 
-        # Second load - should use cached file, not call _load_defaults
+        # First load - should discover from files (calls _load_defaults)
+        settings1 = Settings(str(test_settings_file))
+        first_load_calls = load_defaults_call_count
+
+        # Verify the cache file was created
+        assert (
+            _settings._SETTINGS_FILE.exists()
+        ), "Cache file should exist after first load"
+
+        # Second load - should use cached file, not call _load_defaults again
         settings2 = Settings(str(test_settings_file))
 
         # Both should have same values
         assert settings1.Group_A.setting_int == settings2.Group_A.setting_int
         assert settings2._grouped_settings is not None
 
-        # _load_defaults should NOT have been called (cache was used)
+        # _load_defaults should have been called once (first load), but not on second
         assert (
-            not load_defaults_called
-        ), "Expected cached path, but _load_defaults was called"
+            load_defaults_call_count == first_load_calls
+        ), f"Expected {first_load_calls} calls, got {load_defaults_call_count} - cache not working"
 
 
 class TestCachingBehavior:
@@ -584,7 +592,10 @@ class TestEdgeCases:
                 self.files = []  # Empty files list to trigger fallback
 
             def locate_file(self, file):
-                return tmp_path / "nonexistent"  # Force fallback
+                # Return the real direct_url.json, but nonexistent for other files
+                if file == "direct_url.json":
+                    return direct_url_file
+                return tmp_path / "nonexistent"  # Force fallback for others
 
         def mock_entry_points(group=None):
             if group == "ndev_settings.manifest":
@@ -603,8 +614,13 @@ class TestEdgeCases:
             "importlib.metadata.distribution", mock_distribution
         )
 
+        # Clear any cached settings to force fresh load
+        _settings.clear_settings()
+
         settings = Settings(str(test_settings_file))
 
         # Should have loaded the editable package's settings
-        assert hasattr(settings, "Editable_Group")
+        assert hasattr(
+            settings, "Editable_Group"
+        ), f"Missing Editable_Group. Attrs: {[a for a in dir(settings) if not a.startswith('_')]}"
         assert settings.Editable_Group.setting1 == 42

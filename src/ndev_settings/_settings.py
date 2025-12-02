@@ -4,6 +4,7 @@ import hashlib
 import logging
 from importlib.metadata import entry_points
 from pathlib import Path
+from urllib.parse import unquote, urlparse
 
 import appdirs
 import yaml
@@ -128,19 +129,38 @@ class Settings:
 
                 if yaml_path is None:
                     # For editable installs, check direct_url.json (PEP 610)
-                    direct_url_file = dist._path / "direct_url.json"
-                    if direct_url_file.exists():
+                    # Use locate_file for public API instead of private dist._path
+                    try:
+                        direct_url_file = Path(
+                            str(dist.locate_file("direct_url.json"))
+                        )
+                    except (AttributeError, TypeError):
+                        direct_url_file = None
+
+                    if (
+                        direct_url_file is not None
+                        and direct_url_file.exists()
+                    ):
                         import json
 
                         with open(direct_url_file) as f:
                             direct_url = json.load(f)
                         if direct_url.get("dir_info", {}).get("editable"):
                             # Editable install - use source path
+                            # Use urllib.parse for proper file URL handling
                             url = direct_url["url"]
-                            if url.startswith("file:///"):
-                                source_path = Path(url[8:])  # Remove file:///
-                            elif url.startswith("file://"):
-                                source_path = Path(url[7:])
+                            parsed = urlparse(url)
+                            if parsed.scheme == "file":
+                                # Handle both Unix and Windows paths
+                                path_str = unquote(parsed.path)
+                                # On Windows, path may start with /C:/...
+                                if (
+                                    len(path_str) > 2
+                                    and path_str[0] == "/"
+                                    and path_str[2] == ":"
+                                ):
+                                    path_str = path_str[1:]  # Remove leading /
+                                source_path = Path(path_str)
                             else:
                                 source_path = Path(url)
                             yaml_path = (
@@ -164,7 +184,13 @@ class Settings:
                     for name, data in group_settings.items():
                         if name not in all_settings[group_name]:
                             all_settings[group_name][name] = data
-            except (ModuleNotFoundError, FileNotFoundError, ValueError, PermissionError, OSError) as e:
+            except (
+                ModuleNotFoundError,
+                FileNotFoundError,
+                ValueError,
+                PermissionError,
+                OSError,
+            ) as e:
                 logger.warning(
                     "Failed to load settings from '%s': %s", ep.name, e
                 )
@@ -181,6 +207,9 @@ class Settings:
             return None
 
         # Check if packages changed - if so, need to re-discover
+        # Pop the hash from saved - this is safe because:
+        # - If hash doesn't match, we merge with defaults (saved used for values only)
+        # - If hash matches, we return saved (but _build_groups skips _ keys anyway)
         saved_hash = saved.pop("_entry_points_hash", None)
         if saved_hash != _get_entry_points_hash():
             # Packages installed/removed - merge new defaults with saved values
@@ -226,6 +255,9 @@ class Settings:
         for group_name, group_settings in settings.items():
             # Skip metadata keys (e.g., _entry_points_hash)
             if group_name.startswith("_"):
+                continue
+            # Skip malformed entries that aren't dicts
+            if not isinstance(group_settings, dict):
                 continue
             group_obj = SettingsGroup()
             for name, setting_data in group_settings.items():
