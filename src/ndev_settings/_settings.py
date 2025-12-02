@@ -129,13 +129,12 @@ class Settings:
 
                 if yaml_path is None:
                     # For editable installs, check direct_url.json (PEP 610)
-                    # Use locate_file for public API instead of private dist._path
-                    try:
-                        direct_url_file = Path(
-                            str(dist.locate_file("direct_url.json"))
-                        )
-                    except (AttributeError, TypeError):
-                        direct_url_file = None
+                    # Find direct_url.json from dist.files (includes dist-info path)
+                    direct_url_file = None
+                    for file in dist.files or []:
+                        if file.name == "direct_url.json":
+                            direct_url_file = Path(str(dist.locate_file(file)))
+                            break
 
                     if (
                         direct_url_file is not None

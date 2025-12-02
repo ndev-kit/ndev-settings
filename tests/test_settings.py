@@ -586,14 +586,31 @@ class TestEdgeCases:
                 self.name = "mock_editable"
                 self.value = "mock_package:settings.yaml"
 
+        class MockFile:
+            """Mock file object that mimics PackagePath behavior."""
+
+            def __init__(self, path):
+                self._path = path
+
+            @property
+            def name(self):
+                return self._path.split("/")[-1]
+
+            def __str__(self):
+                return self._path
+
         class MockDistribution:
             def __init__(self):
                 self._path = dist_info_path
-                self.files = []  # Empty files list to trigger fallback
+                # Include direct_url.json in the files list (like real dist-info)
+                self.files = [
+                    MockFile("mock_package-1.0.0.dist-info/direct_url.json")
+                ]
 
             def locate_file(self, file):
-                # Return the real direct_url.json, but nonexistent for other files
-                if file == "direct_url.json":
+                # Handle both string and MockFile input
+                file_str = str(file)
+                if "direct_url.json" in file_str:
                     return direct_url_file
                 return tmp_path / "nonexistent"  # Force fallback for others
 
