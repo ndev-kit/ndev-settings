@@ -13,6 +13,7 @@ def isolate_settings(tmp_path, monkeypatch, test_data_dir):
     This redirects both:
     1. The settings file location (where user settings are saved)
     2. The defaults file (to use test data instead of real package defaults)
+    3. Entry points (to prevent external packages from contributing settings)
 
     This allows tests to run with real persistence behavior while being isolated.
     """
@@ -25,6 +26,15 @@ def isolate_settings(tmp_path, monkeypatch, test_data_dir):
     test_settings_file = test_settings_dir / "settings.yaml"
     monkeypatch.setattr(_settings, "_SETTINGS_DIR", test_settings_dir)
     monkeypatch.setattr(_settings, "_SETTINGS_FILE", test_settings_file)
+
+    # Mock entry_points to return empty list (isolate from external packages)
+    from importlib.metadata import EntryPoints
+
+    monkeypatch.setattr(
+        _settings,
+        "entry_points",
+        lambda group: EntryPoints([]),
+    )
 
     # Copy test data to use as defaults
     test_defaults_path = tmp_path / "test_defaults.yaml"

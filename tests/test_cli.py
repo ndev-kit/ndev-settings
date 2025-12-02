@@ -31,7 +31,7 @@ class TestResetValuesToDefaults:
 
         assert result is True
         with open(settings_file) as f:
-            updated = yaml.safe_load(f)
+            updated = yaml.load(f, Loader=yaml.FullLoader)
         assert updated["TestGroup"]["setting1"]["value"] == "original"
         assert updated["TestGroup"]["setting2"]["value"] == 50
 
@@ -125,6 +125,57 @@ class TestResetValuesToDefaults:
         )
 
         result = reset_values_to_defaults(str(settings_file))
+
+        assert result is True
+
+    def test_flat_format_with_entry_points_hash(self, tmp_path):
+        """Test handling of cached settings file with _entry_points_hash."""
+        settings_file = tmp_path / "settings.yaml"
+        settings_file.write_text(
+            yaml.dump(
+                {
+                    "_entry_points_hash": "abc123",
+                    "TestGroup": {
+                        "setting1": {
+                            "value": "modified",
+                            "default": "original",
+                        },
+                        "setting2": {"value": 100, "default": 50},
+                    },
+                }
+            )
+        )
+
+        result = reset_values_to_defaults(settings_file)
+
+        assert result is True
+        with open(settings_file) as f:
+            updated = yaml.load(f, Loader=yaml.FullLoader)
+        # Hash should be preserved
+        assert updated["_entry_points_hash"] == "abc123"
+        # Settings should be reset
+        assert updated["TestGroup"]["setting1"]["value"] == "original"
+        assert updated["TestGroup"]["setting2"]["value"] == 50
+
+    def test_skips_underscore_prefixed_keys(self, tmp_path):
+        """Test that underscore-prefixed keys are skipped, not treated as groups."""
+        settings_file = tmp_path / "settings.yaml"
+        settings_file.write_text(
+            yaml.dump(
+                {
+                    "_metadata": "some_value",  # Should be skipped
+                    "TestGroup": {
+                        "setting1": {
+                            "value": "modified",
+                            "default": "original",
+                        },
+                    },
+                }
+            )
+        )
+
+        # Should not raise an error when encountering non-dict group
+        result = reset_values_to_defaults(settings_file)
 
         assert result is True
 

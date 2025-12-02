@@ -9,6 +9,9 @@ import yaml
 def reset_values_to_defaults(settings_file: Path | str) -> bool:
     """Reset all 'value' fields to match 'default' fields in a settings YAML file.
 
+    Works with flat format settings files where groups are at the top level.
+    Metadata keys starting with '_' (e.g., _entry_points_hash) are preserved.
+
     Parameters
     ----------
     settings_file : Path | str
@@ -26,14 +29,20 @@ def reset_values_to_defaults(settings_file: Path | str) -> bool:
         return False
 
     with open(settings_file) as f:
-        settings = yaml.safe_load(f)
+        settings_data = yaml.load(f, Loader=yaml.FullLoader)
 
-    if not settings:
+    if not settings_data:
         return False
 
     modified = False
 
-    for group_name, group_settings in settings.items():
+    for group_name, group_settings in settings_data.items():
+        # Skip metadata keys (e.g., _entry_points_hash)
+        if group_name.startswith("_"):
+            continue
+        if not isinstance(group_settings, dict):
+            continue
+
         for setting_name, setting_data in group_settings.items():
             if (
                 isinstance(setting_data, dict)
@@ -50,7 +59,9 @@ def reset_values_to_defaults(settings_file: Path | str) -> bool:
 
     if modified:
         with open(settings_file, "w") as f:
-            yaml.dump(settings, f, default_flow_style=False, sort_keys=False)
+            yaml.dump(
+                settings_data, f, default_flow_style=False, sort_keys=False
+            )
 
     return modified
 

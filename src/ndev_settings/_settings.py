@@ -116,10 +116,9 @@ class Settings:
                 from importlib.metadata import distribution
 
                 dist = distribution(package_name)
-
-                # For installed packages, locate the resource file
-                # The package files are relative to the distribution location
                 yaml_path = None
+
+                # For regular installs, dist.files contains the file list
                 for file in dist.files or []:
                     if file.name == resource_name and package_name in str(
                         file
@@ -128,7 +127,31 @@ class Settings:
                         break
 
                 if yaml_path is None:
-                    # Fallback: try direct path construction for editable installs
+                    # For editable installs, check direct_url.json (PEP 610)
+                    direct_url_file = dist._path / "direct_url.json"
+                    if direct_url_file.exists():
+                        import json
+
+                        with open(direct_url_file) as f:
+                            direct_url = json.load(f)
+                        if direct_url.get("dir_info", {}).get("editable"):
+                            # Editable install - use source path
+                            url = direct_url["url"]
+                            if url.startswith("file:///"):
+                                source_path = Path(url[8:])  # Remove file:///
+                            elif url.startswith("file://"):
+                                source_path = Path(url[7:])
+                            else:
+                                source_path = Path(url)
+                            yaml_path = (
+                                source_path
+                                / "src"
+                                / package_name
+                                / resource_name
+                            )
+
+                if yaml_path is None:
+                    # Final fallback: try site-packages path
                     package_location = str(dist.locate_file(package_name))
                     yaml_path = Path(package_location) / resource_name
 
@@ -158,21 +181,23 @@ class Settings:
             return None
 
         # Check if packages changed - if so, need to re-discover
-        saved_hash = saved.get("_entry_points_hash")
+        saved_hash = saved.pop("_entry_points_hash", None)
         if saved_hash != _get_entry_points_hash():
             # Packages installed/removed - merge new defaults with saved values
             defaults = self._load_defaults()
-            saved_settings = saved.get("settings", {})
-            merged = self._merge_with_saved(defaults, saved_settings)
+            merged = self._merge_with_saved(defaults, saved)
             self._save_settings(merged)
             return merged
 
-        return saved.get("settings")
+        return saved
 
     def _merge_with_saved(self, defaults: dict, saved: dict) -> dict:
         """Merge saved user values into fresh defaults."""
         merged = {}
         for group_name, group_settings in defaults.items():
+            # Skip metadata keys
+            if group_name.startswith("_"):
+                continue
             merged[group_name] = {}
             for name, data in group_settings.items():
                 merged[group_name][name] = data.copy()
@@ -184,13 +209,11 @@ class Settings:
         return merged
 
     def _save_settings(self, settings: dict) -> None:
-        """Save settings to file."""
+        """Save settings to file in flat format with hash at top."""
         try:
             _SETTINGS_DIR.mkdir(parents=True, exist_ok=True)
-            data = {
-                "_entry_points_hash": _get_entry_points_hash(),
-                "settings": settings,
-            }
+            # Flat format: hash first, then all settings groups
+            data = {"_entry_points_hash": _get_entry_points_hash(), **settings}
             with open(_SETTINGS_FILE, "w") as f:
                 yaml.dump(data, f, default_flow_style=False, sort_keys=False)
         except (OSError, PermissionError) as e:
