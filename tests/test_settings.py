@@ -138,27 +138,35 @@ class TestSettingsSaveLoad:
         settings2 = Settings(str(test_settings_file))
         assert settings2.Group_A.setting_int == 999
 
-    def test_cached_load_is_faster(self, test_settings_file):
-        """Test that second load uses cached settings."""
-        import time
-
-        # First load - discovers from files
-        start = time.perf_counter()
+    def test_cached_load_uses_saved_file(
+        self, test_settings_file, monkeypatch
+    ):
+        """Test that second load uses cached settings file, not _load_defaults."""
+        # First load - discovers from files and saves
         settings1 = Settings(str(test_settings_file))
-        first_load_time = time.perf_counter() - start
 
-        # Second load - should use cached file
-        start = time.perf_counter()
+        # Track if _load_defaults is called on second load
+        load_defaults_called = False
+        original_load_defaults = Settings._load_defaults
+
+        def tracking_load_defaults(self):
+            nonlocal load_defaults_called
+            load_defaults_called = True
+            return original_load_defaults(self)
+
+        monkeypatch.setattr(Settings, "_load_defaults", tracking_load_defaults)
+
+        # Second load - should use cached file, not call _load_defaults
         settings2 = Settings(str(test_settings_file))
-        second_load_time = time.perf_counter() - start
 
         # Both should have same values
         assert settings1.Group_A.setting_int == settings2.Group_A.setting_int
-
-        # Second load should be faster (or at least not slower)
-        # Note: On fast systems both may be very fast, so we just check it works
-        assert second_load_time <= first_load_time
         assert settings2._grouped_settings is not None
+
+        # _load_defaults should NOT have been called (cache was used)
+        assert (
+            not load_defaults_called
+        ), "Expected cached path, but _load_defaults was called"
 
 
 class TestCachingBehavior:

@@ -17,7 +17,11 @@ _SETTINGS_FILE = _SETTINGS_DIR / "settings.yaml"
 
 
 def _load_yaml(path: Path) -> dict:
-    """Load a YAML file, returning empty dict if missing or invalid."""
+    """Load a YAML file, returning empty dict if missing or invalid.
+
+    Uses FullLoader to support Python-specific types like tuples
+    (e.g., canvas_size: !!python/tuple [1024, 1024]) in settings files.
+    """
     try:
         with open(path) as f:
             return yaml.load(f, Loader=yaml.FullLoader) or {}
@@ -98,7 +102,12 @@ class Settings:
             all_settings = _load_yaml(self._defaults_path)
 
         # Load external YAML files from entry points
-        for ep in entry_points(group="ndev_settings.manifest"):
+        # Sort for deterministic merge order across environments
+        eps = sorted(
+            entry_points(group="ndev_settings.manifest"),
+            key=lambda ep: (ep.name, ep.value),
+        )
+        for ep in eps:
             try:
                 package_name, resource_name = ep.value.split(":", 1)
                 from importlib.resources import files
@@ -166,10 +175,16 @@ class Settings:
             with open(_SETTINGS_FILE, "w") as f:
                 yaml.dump(data, f, default_flow_style=False, sort_keys=False)
         except (OSError, PermissionError) as e:
-            logger.warning("Failed to save settings to %s: %s", _SETTINGS_FILE, e)
+            logger.warning(
+                "Failed to save settings to %s: %s", _SETTINGS_FILE, e
+            )
+
     def _build_groups(self, settings: dict):
         """Create SettingsGroup objects from settings dict."""
         for group_name, group_settings in settings.items():
+            # Skip metadata keys (e.g., _entry_points_hash)
+            if group_name.startswith("_"):
+                continue
             group_obj = SettingsGroup()
             for name, setting_data in group_settings.items():
                 if isinstance(setting_data, dict) and "value" in setting_data:
