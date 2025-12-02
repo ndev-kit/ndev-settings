@@ -99,23 +99,32 @@ class TestSettingsReset:
 class TestSettingsSaveLoad:
     """Test Settings save and load functionality."""
 
-    def test_save_and_reload(self, test_settings_file):
-        """Test saving changes and reloading them."""
+    def test_save_syncs_values(self, test_settings_file):
+        """Test that save() syncs group values to internal dict."""
         settings = Settings(str(test_settings_file))
 
-        # Modify some settings
+        # Modify some settings via group objects
         settings.Group_A.setting_int = 555
         settings.Group_A.setting_string = "Saved text"
 
-        # Save
+        # Before save, _grouped_settings should still have old values
+        assert (
+            settings._grouped_settings["Group_A"]["setting_int"]["value"]
+            != 555
+        )
+
+        # Save syncs values
         settings.save()
 
-        # Create new Settings instance from same file
-        settings2 = Settings(str(test_settings_file))
-
-        # Should have saved changes
-        assert settings2.Group_A.setting_int == 555
-        assert settings2.Group_A.setting_string == "Saved text"
+        # Now internal dict should be updated
+        assert (
+            settings._grouped_settings["Group_A"]["setting_int"]["value"]
+            == 555
+        )
+        assert (
+            settings._grouped_settings["Group_A"]["setting_string"]["value"]
+            == "Saved text"
+        )
 
 
 class TestDynamicChoices:
@@ -126,13 +135,13 @@ class TestDynamicChoices:
         settings = Settings(str(test_settings_file))
 
         # Test the dynamic choices method
-        choices = settings._get_dynamic_choices("bioio.readers")
+        choices = settings.get_dynamic_choices("bioio.readers")
 
         # Should return a list (even if empty)
         assert isinstance(choices, list)
 
         # Test with invalid provider
-        empty_choices = settings._get_dynamic_choices("invalid.provider")
+        empty_choices = settings.get_dynamic_choices("invalid.provider")
         assert empty_choices == []
 
 
@@ -188,18 +197,22 @@ class TestExternalContributions:
     def test_external_settings_can_be_modified(
         self, test_settings_file, mock_external_contributions
     ):
-        """Test that external settings can be modified and saved."""
+        """Test that external settings can be modified via group objects."""
         settings = Settings(str(test_settings_file))
 
-        # Modify external setting
+        # Modify external setting via group object
         settings.External_Contribution.setting_int = 999
 
-        # Save and reload
+        # Save syncs the value to internal dict
         settings.save()
-        settings2 = Settings(str(test_settings_file))
 
-        # Should preserve the change
-        assert settings2.External_Contribution.setting_int == 999
+        # Verify the internal dict was updated
+        assert (
+            settings._grouped_settings["External_Contribution"]["setting_int"][
+                "value"
+            ]
+            == 999
+        )
 
     def test_duplicate_external_contributions_handling(
         self, test_settings_file, tmp_path, monkeypatch
@@ -302,11 +315,11 @@ class TestExternalContributions:
         # Should have the shared group
         assert hasattr(settings, "Shared_Group")
 
-        # Last external contribution should win (external2)
-        # because _load_external_yaml_files uses dict.update() which overwrites existing keys
-        assert settings.Shared_Group.shared_setting == "from_external2"
+        # First external contribution wins for overlapping settings (stable, predictable)
+        # This prevents unpredictable behavior based on package load order
+        assert settings.Shared_Group.shared_setting == "from_external1"
 
-        # But unique settings from later externals should still be added
+        # Unique settings from later externals should still be added
         assert settings.Shared_Group.unique_setting == "unique_to_external2"
 
 
@@ -369,6 +382,6 @@ def test_dynamic_choices(empty_settings_file):
     )  # Create without calling __init__
 
     # Test the method exists and handles missing entry points gracefully
-    choices = settings._get_dynamic_choices("nonexistent.entry.point")
+    choices = settings.get_dynamic_choices("nonexistent.entry.point")
     assert isinstance(choices, list)
     assert len(choices) == 0  # Should return empty list when no entries found

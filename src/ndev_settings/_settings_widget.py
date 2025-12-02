@@ -21,7 +21,7 @@ class SettingsContainer(Container):
             "fallback_message", "No choices available"
         )
 
-        choices = self.settings._get_dynamic_choices(provider)
+        choices = self.settings.get_dynamic_choices(provider)
         return choices if choices else [fallback_message], fallback_message
 
     def _create_widget_for_setting(

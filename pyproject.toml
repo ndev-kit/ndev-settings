@@ -37,15 +37,16 @@ dependencies = [
 [project.optional-dependencies]
 # Allow easily installation with the full, default napari installation
 # (including Qt backend) using ndev-settings[all].
-all = ["napari[all]"]
+all = ["napari[pyqt6]"]
 
 [dependency-groups]
-testing = [
+dev = [
     "tox-uv",
     "pytest",  # https://docs.pytest.org/en/latest/contents.html
     "pytest-cov",  # https://pytest-cov.readthedocs.io/en/latest/
     "pytest-qt",  # https://pytest-qt.readthedocs.io/en/latest/
     "pyqt6",
+    "napari",
 ]
 
 [project.entry-points."napari.manifest"]
