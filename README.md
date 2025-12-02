@@ -117,6 +117,36 @@ print(settings.Canvas.canvas_scale)
 # Access settings from external libraries (if installed)
 print(settings.Reader.preferred_reader)  # From ndevio
 print(settings.Export.compression_level)  # From ndevio
+
+# Modify and save settings
+settings.Canvas.canvas_scale = 2.0
+settings.save()  # Persists across sessions
+
+# Reset to defaults
+settings.reset_to_default("canvas_scale")  # Reset single setting
+settings.reset_to_default(group="Canvas")  # Reset entire group
+settings.reset_to_default()  # Reset all settings
+```
+
+## How Settings Persistence Works
+
+Settings are automatically cached to improve startup performance:
+
+1. **First load**: Settings are discovered from all installed packages via entry points, merged together, and saved to a user config file
+2. **Subsequent loads**: Settings are loaded directly from the cached file (much faster)
+3. **Package changes**: When packages are installed/removed, settings are re-discovered and merged while preserving your customizations
+
+**Storage location**: Settings are stored in a platform-appropriate config directory:
+
+- **Windows**: `%LOCALAPPDATA%\ndev-settings\settings.yaml`
+- **macOS**: `~/Library/Application Support/ndev-settings/settings.yaml`
+- **Linux**: `~/.config/ndev-settings/settings.yaml`
+
+**Clearing the cache**: To force re-discovery of settings (e.g., after manual edits to package YAML files):
+
+```python
+from ndev_settings._settings import clear_settings
+clear_settings()  # Deletes cached settings, next load will re-discover
 ```
 
 ## Pre-commit hook
