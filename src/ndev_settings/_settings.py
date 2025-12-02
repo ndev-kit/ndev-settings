@@ -36,7 +36,7 @@ def _get_entry_points_hash() -> str:
     """
     eps = entry_points(group="ndev_settings.manifest")
     ep_strings = sorted(f"{ep.name}:{ep.value}" for ep in eps)
-    return hashlib.md5("|".join(ep_strings).encode()).hexdigest()
+    return hashlib.sha256("|".join(ep_strings).encode()).hexdigest()
 
 
 def clear_settings() -> None:
@@ -164,7 +164,7 @@ class Settings:
                     for name, data in group_settings.items():
                         if name not in all_settings[group_name]:
                             all_settings[group_name][name] = data
-            except (ModuleNotFoundError, FileNotFoundError, ValueError) as e:
+            except (ModuleNotFoundError, FileNotFoundError, ValueError, PermissionError, OSError) as e:
                 logger.warning(
                     "Failed to load settings from '%s': %s", ep.name, e
                 )
