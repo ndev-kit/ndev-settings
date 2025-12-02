@@ -351,7 +351,7 @@ class TestExternalContributions:
             yaml.dump(external2_data, default_flow_style=False)
         )
 
-        # Mock multiple entry points using napari-style resource paths
+        # Mock multiple entry points
         class MockEntryPoint:
             def __init__(
                 self, name, package_name, resource_name, resource_path
@@ -378,29 +378,49 @@ class TestExternalContributions:
                 ]
             return []
 
-        # Mock importlib.resources.files to return our test files
-        def mock_files(package_name):
-            class MockPath:
-                def __truediv__(self, resource_name):
-                    if (
-                        package_name == "mock_package1"
-                        and resource_name == "settings.yaml"
-                    ):
-                        return external1_file
-                    elif (
-                        package_name == "mock_package2"
-                        and resource_name == "settings.yaml"
-                    ):
-                        return external2_file
-                    return tmp_path / resource_name
+        # Mock distribution() to return our test files
+        class MockPackagePath:
+            def __init__(self, package_name, resource_name, actual_path):
+                self._path = actual_path
+                self.name = resource_name
+                self._package_name = package_name
 
-            return MockPath()
+            def __str__(self):
+                return f"{self._package_name}/{self.name}"
+
+        class MockDistribution:
+            def __init__(self, package_name, resource_name, resource_path):
+                self._package_name = package_name
+                self._resource_path = resource_path
+                self.files = [
+                    MockPackagePath(package_name, resource_name, resource_path)
+                ]
+
+            def locate_file(self, file):
+                if hasattr(file, "_path"):
+                    return file._path
+                return self._resource_path.parent
+
+        from importlib.metadata import distribution as orig_dist
+
+        def mock_distribution(package_name):
+            if package_name == "mock_package1":
+                return MockDistribution(
+                    package_name, "settings.yaml", external1_file
+                )
+            elif package_name == "mock_package2":
+                return MockDistribution(
+                    package_name, "settings.yaml", external2_file
+                )
+            return orig_dist(package_name)
 
         # Apply patches
         monkeypatch.setattr(
             "ndev_settings._settings.entry_points", mock_entry_points
         )
-        monkeypatch.setattr("importlib.resources.files", mock_files)
+        monkeypatch.setattr(
+            "importlib.metadata.distribution", mock_distribution
+        )
 
         # Load settings
         settings = Settings(str(test_settings_file))

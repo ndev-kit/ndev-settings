@@ -110,9 +110,28 @@ class Settings:
         for ep in eps:
             try:
                 package_name, resource_name = ep.value.split(":", 1)
-                from importlib.resources import files
 
-                yaml_path = Path(str(files(package_name) / resource_name))
+                # Use distribution() to find package location WITHOUT importing it
+                # This avoids slow package imports (e.g., ndevio takes 2.5s to import)
+                from importlib.metadata import distribution
+
+                dist = distribution(package_name)
+
+                # For installed packages, locate the resource file
+                # The package files are relative to the distribution location
+                yaml_path = None
+                for file in dist.files or []:
+                    if file.name == resource_name and package_name in str(
+                        file
+                    ):
+                        yaml_path = Path(str(dist.locate_file(file)))
+                        break
+
+                if yaml_path is None:
+                    # Fallback: try direct path construction for editable installs
+                    package_location = str(dist.locate_file(package_name))
+                    yaml_path = Path(package_location) / resource_name
+
                 external = _load_yaml(yaml_path)
 
                 # Merge external settings (first one wins for conflicts)

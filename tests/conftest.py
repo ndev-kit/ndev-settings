@@ -96,6 +96,8 @@ def mock_external_contributions(tmp_path, test_data_dir, monkeypatch):
             self.name = name
             self.value = f"{package_name}:{resource_name}"
             self._resource_path = resource_path
+            self._package_name = package_name
+            self._resource_name = resource_name
 
     def mock_entry_points(group=None):
         if group == "ndev_settings.manifest":
@@ -109,23 +111,46 @@ def mock_external_contributions(tmp_path, test_data_dir, monkeypatch):
             ]
         return []
 
-    # Mock importlib.resources.files to return our test file
-    def mock_files(package_name):
+    # Mock distribution() to return our test file path
+    class MockPackagePath:
+        def __init__(self, package_name, resource_name, actual_path):
+            self._path = actual_path
+            self.name = resource_name  # This is what file.name returns
+            self._package_name = package_name
+
+        def __str__(self):
+            # Return something like "mock_package/settings.yaml"
+            # so package_name is in str(file)
+            return f"{self._package_name}/{self.name}"
+
+    class MockDistribution:
+        def __init__(self, package_name, resource_name, resource_path):
+            self._package_name = package_name
+            self._resource_path = resource_path
+            # Create a mock files list with proper name and str representation
+            self.files = [
+                MockPackagePath(package_name, resource_name, resource_path)
+            ]
+
+        def locate_file(self, file):
+            if hasattr(file, "_path"):
+                return file._path
+            # For editable install fallback
+            return self._resource_path.parent
+
+    from importlib.metadata import distribution as orig_dist
+
+    def mock_distribution(package_name):
         if package_name == "mock_package":
-
-            class MockPath:
-                def __truediv__(self, resource_name):
-                    if resource_name == "settings.yaml":
-                        return external_file
-                    return tmp_path / resource_name
-
-            return MockPath()
-        raise ImportError(f"No module named '{package_name}'")
+            return MockDistribution(
+                package_name, "settings.yaml", external_file
+            )
+        return orig_dist(package_name)
 
     # Apply the patches
     monkeypatch.setattr(
         "ndev_settings._settings.entry_points", mock_entry_points
     )
-    monkeypatch.setattr("importlib.resources.files", mock_files)
+    monkeypatch.setattr("importlib.metadata.distribution", mock_distribution)
 
     return external_file
