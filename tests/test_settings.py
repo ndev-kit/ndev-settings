@@ -498,3 +498,113 @@ def test_dynamic_choices(empty_settings_file):
     choices = settings.get_dynamic_choices("nonexistent.entry.point")
     assert isinstance(choices, list)
     assert len(choices) == 0  # Should return empty list when no entries found
+
+
+class TestEdgeCases:
+    """Test edge cases and error handling."""
+
+    def test_build_groups_skips_metadata_keys(self, test_settings_file):
+        """Test that _build_groups skips underscore-prefixed keys."""
+        settings = Settings(str(test_settings_file))
+
+        # Manually call _build_groups with settings containing metadata
+        settings_with_metadata = {
+            "_entry_points_hash": "abc123",
+            "_other_metadata": {"some": "data"},
+            "ValidGroup": {"setting1": {"value": 10, "default": 10}},
+        }
+
+        # Clear existing groups and rebuild
+        settings._build_groups(settings_with_metadata)
+
+        # Should have ValidGroup but not metadata keys as attributes
+        assert hasattr(settings, "ValidGroup")
+        assert not hasattr(settings, "_entry_points_hash")
+        assert not hasattr(settings, "_other_metadata")
+
+    def test_save_failure_logs_warning(
+        self, test_settings_file, monkeypatch, caplog
+    ):
+        """Test that save failures are logged as warnings."""
+        import logging
+
+        settings = Settings(str(test_settings_file))
+
+        # Mock yaml.dump to raise when trying to save
+        def failing_dump(*args, **kwargs):
+            raise OSError("Cannot write to file")
+
+        monkeypatch.setattr("yaml.dump", failing_dump)
+
+        # Should not raise, but should log
+        with caplog.at_level(logging.WARNING):
+            settings._save_settings(settings._grouped_settings)
+
+        assert "Failed to save settings" in caplog.text
+
+    def test_editable_install_detection(
+        self, test_settings_file, tmp_path, monkeypatch
+    ):
+        """Test that editable installs are detected via direct_url.json."""
+        import json
+
+        from ndev_settings import _settings
+
+        # Create a mock editable install structure
+        source_dir = tmp_path / "source"
+        source_dir.mkdir()
+        src_package_dir = source_dir / "src" / "mock_package"
+        src_package_dir.mkdir(parents=True)
+        yaml_file = src_package_dir / "settings.yaml"
+        yaml_file.write_text(
+            "Editable_Group:\n  setting1:\n    value: 42\n    default: 42\n"
+        )
+
+        # Create a mock dist_info with direct_url.json
+        dist_info_path = tmp_path / "mock_package-1.0.0.dist-info"
+        dist_info_path.mkdir()
+        direct_url_file = dist_info_path / "direct_url.json"
+        direct_url_file.write_text(
+            json.dumps(
+                {
+                    "url": f"file:///{source_dir.as_posix()}",
+                    "dir_info": {"editable": True},
+                }
+            )
+        )
+
+        class MockEntryPoint:
+            def __init__(self):
+                self.name = "mock_editable"
+                self.value = "mock_package:settings.yaml"
+
+        class MockDistribution:
+            def __init__(self):
+                self._path = dist_info_path
+                self.files = []  # Empty files list to trigger fallback
+
+            def locate_file(self, file):
+                return tmp_path / "nonexistent"  # Force fallback
+
+        def mock_entry_points(group=None):
+            if group == "ndev_settings.manifest":
+                return [MockEntryPoint()]
+            return []
+
+        def mock_distribution(name):
+            if name == "mock_package":
+                return MockDistribution()
+            from importlib.metadata import distribution
+
+            return distribution(name)
+
+        monkeypatch.setattr(_settings, "entry_points", mock_entry_points)
+        monkeypatch.setattr(
+            "importlib.metadata.distribution", mock_distribution
+        )
+
+        settings = Settings(str(test_settings_file))
+
+        # Should have loaded the editable package's settings
+        assert hasattr(settings, "Editable_Group")
+        assert settings.Editable_Group.setting1 == 42

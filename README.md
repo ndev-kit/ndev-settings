@@ -135,7 +135,7 @@ If you have many legacy npe1 plugins installed (e.g., `napari-assistant`, `napar
 **Workaround**: If you don't need npe1 runtime behavior plugins, you can disable the adapter in napari:
 
 1. Go to `File` -> `Preferences` -> `Plugins`
-2. Uncheck "Use npe2 adaptor"
+2. Uncheck "Use npe2 adapter"
 3. Restart napari
 
 This dramatically improves widget loading times since only pure npe2 plugins are discovered.
