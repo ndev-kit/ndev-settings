@@ -45,8 +45,7 @@ class SettingsContainer(Container):
         for key, value in info.items():
             if key in ["default", "value", "tooltip", "dynamic_choices"]:
                 continue
-            else:
-                widget_options[key] = value
+            widget_options[key] = value
 
         # Handle dynamic choices
         if "dynamic_choices" in info:
