@@ -7,58 +7,49 @@ import pytest
 
 
 @pytest.fixture(autouse=True)
-def disable_settings_persistence(monkeypatch):
-    """Disable settings persistence during tests to ensure clean state."""
-    from ndev_settings import _settings
+def isolate_settings(tmp_path, monkeypatch, test_data_dir):
+    """Isolate settings to tmp_path for each test.
 
-    # Clear any existing saved settings
-    _settings.clear_settings()
+    This redirects both:
+    1. The settings file location (where user settings are saved)
+    2. The defaults file (to use test data instead of real package defaults)
 
-    # Disable persistence via module-level flag
-    monkeypatch.setattr(_settings, "_persistence_enabled", False)
-
-
-@pytest.fixture(autouse=True)
-def mock_settings_file_path(tmp_path, monkeypatch, test_data_dir):
-    """Mock the settings file path to use test data during tests."""
-    from pathlib import Path
-
+    This allows tests to run with real persistence behavior while being isolated.
+    """
     import ndev_settings
+    from ndev_settings import _settings
     from ndev_settings._settings import Settings
 
-    # Use the existing test_settings.yaml as our mock data
-    test_settings_path = tmp_path / "test_ndev_settings.yaml"
-    shutil.copy(test_data_dir / "test_settings.yaml", test_settings_path)
+    # Redirect settings file to tmp_path
+    test_settings_dir = tmp_path / "ndev-settings"
+    test_settings_file = test_settings_dir / "settings.yaml"
+    monkeypatch.setattr(_settings, "_SETTINGS_DIR", test_settings_dir)
+    monkeypatch.setattr(_settings, "_SETTINGS_FILE", test_settings_file)
 
-    # Store the original Settings class constructor
+    # Copy test data to use as defaults
+    test_defaults_path = tmp_path / "test_defaults.yaml"
+    shutil.copy(test_data_dir / "test_settings.yaml", test_defaults_path)
+
+    # Redirect default settings file path
     original_settings_init = Settings.__init__
-
-    # Get the real default settings file path
     real_settings_path = str(
         Path(ndev_settings.__file__).parent / "ndev_settings.yaml"
     )
 
     def mock_settings_init(self, defaults_file=None):
-        """Mock Settings constructor to use test file only when loading the default settings."""
-        # Only redirect if this is the default ndev_settings.yaml path
-        if defaults_file == real_settings_path:
-            defaults_file = str(test_settings_path)
-
-        # Ensure defaults_file is never None
-        if defaults_file is None:
-            defaults_file = str(test_settings_path)
-
+        """Redirect default settings file to test data."""
+        if defaults_file == real_settings_path or defaults_file is None:
+            defaults_file = str(test_defaults_path)
         return original_settings_init(self, defaults_file)
 
-    # Mock the Settings class constructor
     monkeypatch.setattr(Settings, "__init__", mock_settings_init)
 
-    # Reset singleton before test
+    # Reset singleton before each test
     ndev_settings._settings_instance = None
 
-    yield test_settings_path
+    yield test_defaults_path
 
-    # Clean up
+    # Clean up singleton after test
     ndev_settings._settings_instance = None
 
 
@@ -94,7 +85,7 @@ def empty_settings_file(tmp_path):
 
 @pytest.fixture
 def mock_external_contributions(tmp_path, test_data_dir, monkeypatch):
-    """Mock entry points that provide external YAML contributions using napari-style resource paths."""
+    """Mock entry points that provide external YAML contributions."""
 
     # Copy external contribution file to temp directory
     external_file = tmp_path / "external_contribution.yaml"

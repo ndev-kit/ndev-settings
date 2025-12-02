@@ -1,21 +1,19 @@
 from __future__ import annotations
 
 import hashlib
-import os
+import logging
 from importlib.metadata import entry_points
 from pathlib import Path
 
+import appdirs
 import yaml
 
-# User settings are stored in a single cache file
-_SETTINGS_DIR = (
-    Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
-    / "ndev-settings"
-)
-_SETTINGS_FILE = _SETTINGS_DIR / "settings.yaml"
+logger = logging.getLogger(__name__)
 
-# Module-level flag to disable persistence (used in tests)
-_persistence_enabled = True
+# User settings stored in platform-appropriate config directory
+# Uses same location style as napari for familiarity
+_SETTINGS_DIR = Path(appdirs.user_config_dir("ndev-settings", appauthor=False))
+_SETTINGS_FILE = _SETTINGS_DIR / "settings.yaml"
 
 
 def _load_yaml(path: Path) -> dict:
@@ -39,11 +37,8 @@ def _get_entry_points_hash() -> str:
 
 def clear_settings() -> None:
     """Clear saved settings. Next load will use fresh defaults."""
-    try:
-        if _SETTINGS_FILE.exists():
-            _SETTINGS_FILE.unlink()
-    except OSError:
-        pass
+    if _SETTINGS_FILE.exists():
+        _SETTINGS_FILE.unlink()
 
 
 class SettingsGroup:
@@ -119,13 +114,15 @@ class Settings:
                         if name not in all_settings[group_name]:
                             all_settings[group_name][name] = data
             except (ModuleNotFoundError, FileNotFoundError, ValueError) as e:
-                print(f"Failed to load settings from '{ep.name}': {e}")
+                logger.warning(
+                    "Failed to load settings from '%s': %s", ep.name, e
+                )
 
         return all_settings
 
     def _load_saved(self) -> dict | None:
         """Load saved settings if valid, return None if stale or missing."""
-        if not _persistence_enabled or not _SETTINGS_FILE.exists():
+        if not _SETTINGS_FILE.exists():
             return None
 
         saved = _load_yaml(_SETTINGS_FILE)
@@ -159,18 +156,13 @@ class Settings:
 
     def _save_settings(self, settings: dict) -> None:
         """Save settings to file."""
-        if not _persistence_enabled:
-            return
-        try:
-            _SETTINGS_DIR.mkdir(parents=True, exist_ok=True)
-            data = {
-                "_entry_points_hash": _get_entry_points_hash(),
-                "settings": settings,
-            }
-            with open(_SETTINGS_FILE, "w") as f:
-                yaml.dump(data, f, default_flow_style=False, sort_keys=False)
-        except OSError:
-            pass
+        _SETTINGS_DIR.mkdir(parents=True, exist_ok=True)
+        data = {
+            "_entry_points_hash": _get_entry_points_hash(),
+            "settings": settings,
+        }
+        with open(_SETTINGS_FILE, "w") as f:
+            yaml.dump(data, f, default_flow_style=False, sort_keys=False)
 
     def _build_groups(self, settings: dict):
         """Create SettingsGroup objects from settings dict."""

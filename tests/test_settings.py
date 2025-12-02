@@ -126,6 +126,91 @@ class TestSettingsSaveLoad:
             == "Saved text"
         )
 
+    def test_save_persists_across_instances(self, test_settings_file):
+        """Test that saved settings are loaded by new instances."""
+        settings1 = Settings(str(test_settings_file))
+
+        # Modify and save
+        settings1.Group_A.setting_int = 999
+        settings1.save()
+
+        # Create new instance - should load saved value
+        settings2 = Settings(str(test_settings_file))
+        assert settings2.Group_A.setting_int == 999
+
+    def test_cached_load_is_faster(self, test_settings_file):
+        """Test that second load uses cached settings."""
+        import time
+
+        # First load - discovers from files
+        start = time.perf_counter()
+        settings1 = Settings(str(test_settings_file))
+        first_load_time = time.perf_counter() - start
+
+        # Second load - should use cached file
+        start = time.perf_counter()
+        settings2 = Settings(str(test_settings_file))
+        second_load_time = time.perf_counter() - start
+
+        # Both should have same values
+        assert settings1.Group_A.setting_int == settings2.Group_A.setting_int
+
+        # Second load should be faster (or at least not slower)
+        # Note: On fast systems both may be very fast, so we just check it works
+        assert second_load_time <= first_load_time
+        assert settings2._grouped_settings is not None
+
+
+class TestCachingBehavior:
+    """Test settings caching and persistence behavior."""
+
+    def test_clear_settings_forces_rediscovery(self, test_settings_file):
+        """Test that clear_settings() forces re-discovery from defaults."""
+        from ndev_settings import _settings
+
+        settings1 = Settings(str(test_settings_file))
+        settings1.Group_A.setting_int = 888
+        settings1.save()
+
+        # Clear settings
+        _settings.clear_settings()
+
+        # New instance should have default values
+        settings2 = Settings(str(test_settings_file))
+        assert (
+            settings2.Group_A.setting_int == 49
+        )  # default from test_settings.yaml
+
+    def test_package_change_preserves_user_values(
+        self, test_settings_file, monkeypatch
+    ):
+        """Test that when packages change, user values are preserved."""
+        from ndev_settings import _settings
+
+        # First load and save custom values
+        settings1 = Settings(str(test_settings_file))
+        settings1.Group_A.setting_int = 777
+        settings1.save()
+
+        # Simulate a package change by modifying the hash function
+        _ = _settings._get_entry_points_hash()
+        monkeypatch.setattr(
+            _settings, "_get_entry_points_hash", lambda: "different_hash"
+        )
+
+        # New instance should merge: new defaults + saved user values
+        settings2 = Settings(str(test_settings_file))
+
+        # User's custom value should be preserved
+        assert settings2.Group_A.setting_int == 777
+
+    def test_clear_settings_handles_missing_file(self):
+        """Test that clear_settings doesn't crash if file doesn't exist."""
+        from ndev_settings import _settings
+
+        # This should not raise even if file doesn't exist
+        _settings.clear_settings()
+
 
 class TestDynamicChoices:
     """Test dynamic choices functionality."""
