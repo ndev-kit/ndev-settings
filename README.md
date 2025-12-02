@@ -145,7 +145,7 @@ Settings are automatically cached to improve startup performance:
 **Clearing the cache**: To force re-discovery of settings (e.g., after manual edits to package YAML files):
 
 ```python
-from ndev_settings._settings import clear_settings
+from ndev_settings import clear_settings
 clear_settings()  # Deletes cached settings, next load will re-discover
 ```
 

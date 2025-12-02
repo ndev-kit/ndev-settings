@@ -136,6 +136,7 @@ class Settings:
             defaults = self._load_defaults()
             saved_settings = saved.get("settings", {})
             merged = self._merge_with_saved(defaults, saved_settings)
+            self._save_settings(merged)
             return merged
 
         return saved.get("settings")
@@ -156,14 +157,16 @@ class Settings:
 
     def _save_settings(self, settings: dict) -> None:
         """Save settings to file."""
-        _SETTINGS_DIR.mkdir(parents=True, exist_ok=True)
-        data = {
-            "_entry_points_hash": _get_entry_points_hash(),
-            "settings": settings,
-        }
-        with open(_SETTINGS_FILE, "w") as f:
-            yaml.dump(data, f, default_flow_style=False, sort_keys=False)
-
+        try:
+            _SETTINGS_DIR.mkdir(parents=True, exist_ok=True)
+            data = {
+                "_entry_points_hash": _get_entry_points_hash(),
+                "settings": settings,
+            }
+            with open(_SETTINGS_FILE, "w") as f:
+                yaml.dump(data, f, default_flow_style=False, sort_keys=False)
+        except (OSError, PermissionError) as e:
+            logger.warning("Failed to save settings to %s: %s", _SETTINGS_FILE, e)
     def _build_groups(self, settings: dict):
         """Create SettingsGroup objects from settings dict."""
         for group_name, group_settings in settings.items():
