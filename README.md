@@ -128,6 +128,18 @@ settings.reset_to_default(group="Canvas")  # Reset entire group
 settings.reset_to_default()  # Reset all settings
 ```
 
+## Performance Note: npe1 Plugin Compatibility
+
+If you have many legacy npe1 plugins installed (e.g., `napari-assistant`, `napari-segment-blobs-and-things-with-membranes`, `napari-simpleitk-image-processing`), you may experience slow widget loading times (10+ seconds) the first time you open the settings plugin widget in a napari session. This is a known issue in napari's npe1 compatibility layer, not specific to ndev-settings. The npe1 adapter iterates through all plugin widgets and performs expensive metadata lookups for each legacy plugin.
+
+**Workaround**: If you don't need npe1 runtime behavior plugins, you can disable the adapter in napari:
+
+1. Go to `File` -> `Preferences` -> `Plugins`
+2. Uncheck "Use npe2 adaptor"
+3. Restart napari
+
+This dramatically improves widget loading times since only pure npe2 plugins are discovered.
+
 ## How Settings Persistence Works
 
 Settings are automatically cached to improve startup performance:
