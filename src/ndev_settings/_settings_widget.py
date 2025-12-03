@@ -21,7 +21,7 @@ class SettingsContainer(Container):
             "fallback_message", "No choices available"
         )
 
-        choices = self.settings._get_dynamic_choices(provider)
+        choices = self.settings.get_dynamic_choices(provider)
         return choices if choices else [fallback_message], fallback_message
 
     def _create_widget_for_setting(
@@ -45,8 +45,7 @@ class SettingsContainer(Container):
         for key, value in info.items():
             if key in ["default", "value", "tooltip", "dynamic_choices"]:
                 continue
-            else:
-                widget_options[key] = value
+            widget_options[key] = value
 
         # Handle dynamic choices
         if "dynamic_choices" in info:

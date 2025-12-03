@@ -29,6 +29,7 @@ requires-python = ">=3.10"
 # or any other Qt bindings directly (e.g. PyQt5, PySide2).
 # See best practices: https://napari.org/stable/plugins/building_a_plugin/best_practices.html
 dependencies = [
+    "appdirs",
     "magicgui",
     "magic-class",
     "pyyaml",
@@ -37,15 +38,16 @@ dependencies = [
 [project.optional-dependencies]
 # Allow easily installation with the full, default napari installation
 # (including Qt backend) using ndev-settings[all].
-all = ["napari[all]"]
+all = ["napari[pyqt6]"]
 
 [dependency-groups]
-testing = [
+dev = [
     "tox-uv",
     "pytest",  # https://docs.pytest.org/en/latest/contents.html
     "pytest-cov",  # https://pytest-cov.readthedocs.io/en/latest/
     "pytest-qt",  # https://pytest-qt.readthedocs.io/en/latest/
     "pyqt6",
+    "napari",
 ]
 
 [project.entry-points."napari.manifest"]

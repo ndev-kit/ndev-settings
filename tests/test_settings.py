@@ -99,23 +99,133 @@ class TestSettingsReset:
 class TestSettingsSaveLoad:
     """Test Settings save and load functionality."""
 
-    def test_save_and_reload(self, test_settings_file):
-        """Test saving changes and reloading them."""
+    def test_save_syncs_values(self, test_settings_file):
+        """Test that save() syncs group values to internal dict."""
         settings = Settings(str(test_settings_file))
 
-        # Modify some settings
+        # Modify some settings via group objects
         settings.Group_A.setting_int = 555
         settings.Group_A.setting_string = "Saved text"
 
-        # Save
+        # Before save, _grouped_settings should still have old values
+        assert (
+            settings._grouped_settings["Group_A"]["setting_int"]["value"]
+            != 555
+        )
+
+        # Save syncs values
         settings.save()
 
-        # Create new Settings instance from same file
+        # Now internal dict should be updated
+        assert (
+            settings._grouped_settings["Group_A"]["setting_int"]["value"]
+            == 555
+        )
+        assert (
+            settings._grouped_settings["Group_A"]["setting_string"]["value"]
+            == "Saved text"
+        )
+
+    def test_save_persists_across_instances(self, test_settings_file):
+        """Test that saved settings are loaded by new instances."""
+        settings1 = Settings(str(test_settings_file))
+
+        # Modify and save
+        settings1.Group_A.setting_int = 999
+        settings1.save()
+
+        # Create new instance - should load saved value
+        settings2 = Settings(str(test_settings_file))
+        assert settings2.Group_A.setting_int == 999
+
+    def test_cached_load_uses_saved_file(
+        self, test_settings_file, monkeypatch
+    ):
+        """Test that second load uses cached settings file, not _load_defaults."""
+        from ndev_settings import _settings
+
+        # Track all calls to _load_defaults
+        load_defaults_call_count = 0
+        original_load_defaults = Settings._load_defaults
+
+        def tracking_load_defaults(self):
+            nonlocal load_defaults_call_count
+            load_defaults_call_count += 1
+            return original_load_defaults(self)
+
+        monkeypatch.setattr(Settings, "_load_defaults", tracking_load_defaults)
+
+        # First load - should discover from files (calls _load_defaults)
+        settings1 = Settings(str(test_settings_file))
+        first_load_calls = load_defaults_call_count
+
+        # Verify the cache file was created
+        assert (
+            _settings._SETTINGS_FILE.exists()
+        ), "Cache file should exist after first load"
+
+        # Second load - should use cached file, not call _load_defaults again
         settings2 = Settings(str(test_settings_file))
 
-        # Should have saved changes
-        assert settings2.Group_A.setting_int == 555
-        assert settings2.Group_A.setting_string == "Saved text"
+        # Both should have same values
+        assert settings1.Group_A.setting_int == settings2.Group_A.setting_int
+        assert settings2._grouped_settings is not None
+
+        # _load_defaults should have been called once (first load), but not on second
+        assert (
+            load_defaults_call_count == first_load_calls
+        ), f"Expected {first_load_calls} calls, got {load_defaults_call_count} - cache not working"
+
+
+class TestCachingBehavior:
+    """Test settings caching and persistence behavior."""
+
+    def test_clear_settings_forces_rediscovery(self, test_settings_file):
+        """Test that clear_settings() forces re-discovery from defaults."""
+        from ndev_settings import _settings
+
+        settings1 = Settings(str(test_settings_file))
+        settings1.Group_A.setting_int = 888
+        settings1.save()
+
+        # Clear settings
+        _settings.clear_settings()
+
+        # New instance should have default values
+        settings2 = Settings(str(test_settings_file))
+        assert (
+            settings2.Group_A.setting_int == 49
+        )  # default from test_settings.yaml
+
+    def test_package_change_preserves_user_values(
+        self, test_settings_file, monkeypatch
+    ):
+        """Test that when packages change, user values are preserved."""
+        from ndev_settings import _settings
+
+        # First load and save custom values
+        settings1 = Settings(str(test_settings_file))
+        settings1.Group_A.setting_int = 777
+        settings1.save()
+
+        # Simulate a package change by modifying the hash function
+        _ = _settings._get_entry_points_hash()
+        monkeypatch.setattr(
+            _settings, "_get_entry_points_hash", lambda: "different_hash"
+        )
+
+        # New instance should merge: new defaults + saved user values
+        settings2 = Settings(str(test_settings_file))
+
+        # User's custom value should be preserved
+        assert settings2.Group_A.setting_int == 777
+
+    def test_clear_settings_handles_missing_file(self):
+        """Test that clear_settings doesn't crash if file doesn't exist."""
+        from ndev_settings import _settings
+
+        # This should not raise even if file doesn't exist
+        _settings.clear_settings()
 
 
 class TestDynamicChoices:
@@ -126,13 +236,13 @@ class TestDynamicChoices:
         settings = Settings(str(test_settings_file))
 
         # Test the dynamic choices method
-        choices = settings._get_dynamic_choices("bioio.readers")
+        choices = settings.get_dynamic_choices("bioio.readers")
 
         # Should return a list (even if empty)
         assert isinstance(choices, list)
 
         # Test with invalid provider
-        empty_choices = settings._get_dynamic_choices("invalid.provider")
+        empty_choices = settings.get_dynamic_choices("invalid.provider")
         assert empty_choices == []
 
 
@@ -188,18 +298,22 @@ class TestExternalContributions:
     def test_external_settings_can_be_modified(
         self, test_settings_file, mock_external_contributions
     ):
-        """Test that external settings can be modified and saved."""
+        """Test that external settings can be modified via group objects."""
         settings = Settings(str(test_settings_file))
 
-        # Modify external setting
+        # Modify external setting via group object
         settings.External_Contribution.setting_int = 999
 
-        # Save and reload
+        # Save syncs the value to internal dict
         settings.save()
-        settings2 = Settings(str(test_settings_file))
 
-        # Should preserve the change
-        assert settings2.External_Contribution.setting_int == 999
+        # Verify the internal dict was updated
+        assert (
+            settings._grouped_settings["External_Contribution"]["setting_int"][
+                "value"
+            ]
+            == 999
+        )
 
     def test_duplicate_external_contributions_handling(
         self, test_settings_file, tmp_path, monkeypatch
@@ -245,7 +359,7 @@ class TestExternalContributions:
             yaml.dump(external2_data, default_flow_style=False)
         )
 
-        # Mock multiple entry points using napari-style resource paths
+        # Mock multiple entry points
         class MockEntryPoint:
             def __init__(
                 self, name, package_name, resource_name, resource_path
@@ -272,29 +386,49 @@ class TestExternalContributions:
                 ]
             return []
 
-        # Mock importlib.resources.files to return our test files
-        def mock_files(package_name):
-            class MockPath:
-                def __truediv__(self, resource_name):
-                    if (
-                        package_name == "mock_package1"
-                        and resource_name == "settings.yaml"
-                    ):
-                        return external1_file
-                    elif (
-                        package_name == "mock_package2"
-                        and resource_name == "settings.yaml"
-                    ):
-                        return external2_file
-                    return tmp_path / resource_name
+        # Mock distribution() to return our test files
+        class MockPackagePath:
+            def __init__(self, package_name, resource_name, actual_path):
+                self._path = actual_path
+                self.name = resource_name
+                self._package_name = package_name
 
-            return MockPath()
+            def __str__(self):
+                return f"{self._package_name}/{self.name}"
+
+        class MockDistribution:
+            def __init__(self, package_name, resource_name, resource_path):
+                self._package_name = package_name
+                self._resource_path = resource_path
+                self.files = [
+                    MockPackagePath(package_name, resource_name, resource_path)
+                ]
+
+            def locate_file(self, file):
+                if hasattr(file, "_path"):
+                    return file._path
+                return self._resource_path.parent
+
+        from importlib.metadata import distribution as orig_dist
+
+        def mock_distribution(package_name):
+            if package_name == "mock_package1":
+                return MockDistribution(
+                    package_name, "settings.yaml", external1_file
+                )
+            elif package_name == "mock_package2":
+                return MockDistribution(
+                    package_name, "settings.yaml", external2_file
+                )
+            return orig_dist(package_name)
 
         # Apply patches
         monkeypatch.setattr(
             "ndev_settings._settings.entry_points", mock_entry_points
         )
-        monkeypatch.setattr("importlib.resources.files", mock_files)
+        monkeypatch.setattr(
+            "importlib.metadata.distribution", mock_distribution
+        )
 
         # Load settings
         settings = Settings(str(test_settings_file))
@@ -302,11 +436,11 @@ class TestExternalContributions:
         # Should have the shared group
         assert hasattr(settings, "Shared_Group")
 
-        # Last external contribution should win (external2)
-        # because _load_external_yaml_files uses dict.update() which overwrites existing keys
-        assert settings.Shared_Group.shared_setting == "from_external2"
+        # First external contribution wins for overlapping settings (stable, predictable)
+        # This prevents unpredictable behavior based on package load order
+        assert settings.Shared_Group.shared_setting == "from_external1"
 
-        # But unique settings from later externals should still be added
+        # Unique settings from later externals should still be added
         assert settings.Shared_Group.unique_setting == "unique_to_external2"
 
 
@@ -369,6 +503,141 @@ def test_dynamic_choices(empty_settings_file):
     )  # Create without calling __init__
 
     # Test the method exists and handles missing entry points gracefully
-    choices = settings._get_dynamic_choices("nonexistent.entry.point")
+    choices = settings.get_dynamic_choices("nonexistent.entry.point")
     assert isinstance(choices, list)
     assert len(choices) == 0  # Should return empty list when no entries found
+
+
+class TestEdgeCases:
+    """Test edge cases and error handling."""
+
+    def test_build_groups_skips_metadata_keys(self, test_settings_file):
+        """Test that _build_groups skips underscore-prefixed keys."""
+        settings = Settings(str(test_settings_file))
+
+        # Manually call _build_groups with settings containing metadata
+        settings_with_metadata = {
+            "_entry_points_hash": "abc123",
+            "_other_metadata": {"some": "data"},
+            "ValidGroup": {"setting1": {"value": 10, "default": 10}},
+        }
+
+        # Clear existing groups and rebuild
+        settings._build_groups(settings_with_metadata)
+
+        # Should have ValidGroup but not metadata keys as attributes
+        assert hasattr(settings, "ValidGroup")
+        assert not hasattr(settings, "_entry_points_hash")
+        assert not hasattr(settings, "_other_metadata")
+
+    def test_save_failure_logs_warning(
+        self, test_settings_file, monkeypatch, caplog
+    ):
+        """Test that save failures are logged as warnings."""
+        import logging
+
+        settings = Settings(str(test_settings_file))
+
+        # Mock yaml.dump to raise when trying to save
+        def failing_dump(*args, **kwargs):
+            raise OSError("Cannot write to file")
+
+        monkeypatch.setattr("yaml.dump", failing_dump)
+
+        # Should not raise, but should log
+        with caplog.at_level(logging.WARNING):
+            settings._save_settings(settings._grouped_settings)
+
+        assert "Failed to save settings" in caplog.text
+
+    def test_editable_install_detection(
+        self, test_settings_file, tmp_path, monkeypatch
+    ):
+        """Test that editable installs are detected via direct_url.json."""
+        import json
+
+        from ndev_settings import _settings
+
+        # Create a mock editable install structure
+        source_dir = tmp_path / "source"
+        source_dir.mkdir()
+        src_package_dir = source_dir / "src" / "mock_package"
+        src_package_dir.mkdir(parents=True)
+        yaml_file = src_package_dir / "settings.yaml"
+        yaml_file.write_text(
+            "Editable_Group:\n  setting1:\n    value: 42\n    default: 42\n"
+        )
+
+        # Create a mock dist_info with direct_url.json
+        dist_info_path = tmp_path / "mock_package-1.0.0.dist-info"
+        dist_info_path.mkdir()
+        direct_url_file = dist_info_path / "direct_url.json"
+        direct_url_file.write_text(
+            json.dumps(
+                {
+                    "url": f"file:///{source_dir.as_posix()}",
+                    "dir_info": {"editable": True},
+                }
+            )
+        )
+
+        class MockEntryPoint:
+            def __init__(self):
+                self.name = "mock_editable"
+                self.value = "mock_package:settings.yaml"
+
+        class MockFile:
+            """Mock file object that mimics PackagePath behavior."""
+
+            def __init__(self, path):
+                self._path = path
+
+            @property
+            def name(self):
+                return self._path.split("/")[-1]
+
+            def __str__(self):
+                return self._path
+
+        class MockDistribution:
+            def __init__(self):
+                self._path = dist_info_path
+                # Include direct_url.json in the files list (like real dist-info)
+                self.files = [
+                    MockFile("mock_package-1.0.0.dist-info/direct_url.json")
+                ]
+
+            def locate_file(self, file):
+                # Handle both string and MockFile input
+                file_str = str(file)
+                if "direct_url.json" in file_str:
+                    return direct_url_file
+                return tmp_path / "nonexistent"  # Force fallback for others
+
+        def mock_entry_points(group=None):
+            if group == "ndev_settings.manifest":
+                return [MockEntryPoint()]
+            return []
+
+        def mock_distribution(name):
+            if name == "mock_package":
+                return MockDistribution()
+            from importlib.metadata import distribution
+
+            return distribution(name)
+
+        monkeypatch.setattr(_settings, "entry_points", mock_entry_points)
+        monkeypatch.setattr(
+            "importlib.metadata.distribution", mock_distribution
+        )
+
+        # Clear any cached settings to force fresh load
+        _settings.clear_settings()
+
+        settings = Settings(str(test_settings_file))
+
+        # Should have loaded the editable package's settings
+        assert hasattr(
+            settings, "Editable_Group"
+        ), f"Missing Editable_Group. Attrs: {[a for a in dir(settings) if not a.startswith('_')]}"
+        assert settings.Editable_Group.setting1 == 42

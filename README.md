@@ -117,6 +117,48 @@ print(settings.Canvas.canvas_scale)
 # Access settings from external libraries (if installed)
 print(settings.Reader.preferred_reader)  # From ndevio
 print(settings.Export.compression_level)  # From ndevio
+
+# Modify and save settings
+settings.Canvas.canvas_scale = 2.0
+settings.save()  # Persists across sessions
+
+# Reset to defaults
+settings.reset_to_default("canvas_scale")  # Reset single setting
+settings.reset_to_default(group="Canvas")  # Reset entire group
+settings.reset_to_default()  # Reset all settings
+```
+
+## Performance Note: npe1 Plugin Compatibility
+
+If you have many legacy npe1 plugins installed (e.g., `napari-assistant`, `napari-segment-blobs-and-things-with-membranes`, `napari-simpleitk-image-processing`), you may experience slow widget loading times (10+ seconds) the first time you open the settings plugin widget in a napari session. This is a known issue in napari's npe1 compatibility layer, not specific to ndev-settings. The npe1 adapter iterates through all plugin widgets and performs expensive metadata lookups for each legacy plugin.
+
+**Workaround**: If you don't need npe1 runtime behavior plugins, you can disable the adapter in napari:
+
+1. Go to `File` -> `Preferences` -> `Plugins`
+2. Uncheck "Use npe2 adapter"
+3. Restart napari
+
+This dramatically improves widget loading times since only pure npe2 plugins are discovered.
+
+## How Settings Persistence Works
+
+Settings are automatically cached to improve startup performance:
+
+1. **First load**: Settings are discovered from all installed packages via entry points, merged together, and saved to a user config file
+2. **Subsequent loads**: Settings are loaded directly from the cached file (much faster)
+3. **Package changes**: When packages are installed/removed, settings are re-discovered and merged while preserving your customizations
+
+**Storage location**: Settings are stored in a platform-appropriate config directory:
+
+- **Windows**: `%LOCALAPPDATA%\ndev-settings\settings.yaml`
+- **macOS**: `~/Library/Application Support/ndev-settings/settings.yaml`
+- **Linux**: `~/.config/ndev-settings/settings.yaml`
+
+**Clearing the cache**: To force re-discovery of settings (e.g., after manual edits to package YAML files):
+
+```python
+from ndev_settings import clear_settings
+clear_settings()  # Deletes cached settings, next load will re-discover
 ```
 
 ## Pre-commit hook
