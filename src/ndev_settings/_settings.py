@@ -290,11 +290,8 @@ class Settings:
             for group_name, group_settings in self._grouped_settings.items():
                 if setting_name in group_settings:
                     default = group_settings[setting_name].get("default")
-                    if default is not None:
-                        setattr(
-                            getattr(self, group_name), setting_name, default
-                        )
-                        group_settings[setting_name]["value"] = default
+                    setattr(getattr(self, group_name), setting_name, default)
+                    group_settings[setting_name]["value"] = default
                     self.save()
                     return
         else:

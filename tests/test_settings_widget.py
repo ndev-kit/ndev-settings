@@ -147,15 +147,15 @@ def test_grouping_functionality():
         key for key in container._widgets if key.startswith("Canvas.")
     ]
     reader_widgets = [
-        key for key in container._widgets if key.startswith("ndevio_Reader.")
+        key for key in container._widgets if key.startswith("ndevio_reader.")
     ]
 
     # Should have widgets from multiple groups
     if hasattr(container.settings, "Canvas"):
         assert len(canvas_widgets) > 0, "Should have Canvas widgets"
 
-    if hasattr(container.settings, "ndevio_Reader"):
-        assert len(reader_widgets) > 0, "Should have ndevio_Reader widgets"
+    if hasattr(container.settings, "ndevio_reader"):
+        assert len(reader_widgets) > 0, "Should have ndevio_reader widgets"
 
 
 def test_widget_container_with_custom_settings(test_settings_file):
@@ -241,3 +241,56 @@ def test_reset_to_defaults():
         settings.Group_A.setting_bool
         == settings._grouped_settings["Group_A"]["setting_bool"]["default"]
     )
+
+
+def test_nullable_dynamic_choices_includes_none():
+    """Test that dynamic choices with default=null include None as a valid option."""
+    container = SettingsContainer()
+
+    widget_key = "Group_A.setting_dynamic_nullable"
+    assert (
+        widget_key in container._widgets
+    ), f"Expected widget {widget_key} to exist"
+    widget = container._widgets[widget_key]
+
+    # None should be in the choices
+    assert (
+        None in widget.choices
+    ), f"None should be in choices for nullable dynamic setting, got {widget.choices}"
+
+    # The widget value should be None (matching the YAML value)
+    assert widget.value is None
+
+
+def test_non_nullable_dynamic_choices_excludes_none():
+    """Test that dynamic choices with non-null default do NOT include None."""
+    container = SettingsContainer()
+
+    widget_key = "Group_A.setting_dynamic"
+    assert (
+        widget_key in container._widgets
+    ), f"Expected widget {widget_key} to exist"
+    widget = container._widgets[widget_key]
+
+    # None should NOT be in the choices
+    assert (
+        None not in widget.choices
+    ), "None should not be in choices for non-nullable dynamic setting"
+
+
+def test_reset_nullable_dynamic_to_default():
+    """Test that resetting a nullable dynamic setting restores None."""
+    settings = get_settings()
+
+    # Verify initial default is None
+    assert settings.Group_A.setting_dynamic_nullable is None
+
+    # Change the setting
+    settings.Group_A.setting_dynamic_nullable = "some_reader"
+    assert settings.Group_A.setting_dynamic_nullable == "some_reader"
+
+    # Reset to defaults
+    settings.reset_to_default("setting_dynamic_nullable")
+
+    # Should be None again
+    assert settings.Group_A.setting_dynamic_nullable is None

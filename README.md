@@ -51,7 +51,7 @@ External libraries can provide their settings in YAML format with the same struc
 **Step 1**: Create a YAML file in the external library (e.g., `ndev_settings.yaml`):
 
 ```yaml
-ndevio_Reader:
+ndevio_reader:
   preferred_reader:
     default: bioio-ome-tiff
     dynamic_choices:
@@ -72,7 +72,7 @@ ndevio_Reader:
     tooltip: Whether to clear the viewer when selecting a new scene
     value: false
 
-ndevio_Export:
+ndevio_export:
   canvas_scale:
     default: 1.0
     max: 100.0
