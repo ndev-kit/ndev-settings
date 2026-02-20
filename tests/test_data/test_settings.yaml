@@ -48,6 +48,13 @@ Group_A:
       provider: bioio.readers
     tooltip: Preferred reader to use when opening images
     value: bioio-ome-tiff
+  setting_dynamic_nullable:
+    default: null
+    dynamic_choices:
+      fallback_message: No readers found
+      provider: bioio.readers
+    tooltip: Nullable dynamic setting (None is valid)
+    value: null
 Group_B:
   setting_int:
     default: 50

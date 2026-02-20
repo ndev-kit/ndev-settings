@@ -51,11 +51,21 @@ class SettingsContainer(Container):
         if "dynamic_choices" in info:
             choices, fallback_message = self._get_dynamic_choices(info)
             choices_available = choices != [fallback_message]
-            current_value = init_value if init_value in choices else choices[0]
+            nullable = info.get("default") is None
+
+            current_value = (
+                init_value
+                if (init_value in choices or (nullable and init_value is None))
+                else choices[0]
+            )
 
             create_widget_args["value"] = current_value
             widget_options.update(
-                {"choices": choices, "enabled": choices_available}
+                {
+                    "choices": choices,
+                    "nullable": nullable,
+                    "enabled": choices_available,
+                }
             )
 
         # Pass options as a single parameter if we have any
