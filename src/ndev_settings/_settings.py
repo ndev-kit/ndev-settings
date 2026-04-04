@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.metadata as importlib_metadata
 import logging
-from importlib.metadata import PackageNotFoundError, distribution, entry_points
+from importlib.metadata import entry_points
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
@@ -45,8 +46,13 @@ def _get_entry_points_hash() -> str:
     for ep in eps:
         package_name, _, _ = ep.value.partition(":")
         try:
-            package_version = distribution(package_name).version
-        except (PackageNotFoundError, ValueError, OSError):
+            dist = importlib_metadata.distribution(package_name)
+            package_version = getattr(dist, "version", "unknown")
+        except (
+            importlib_metadata.PackageNotFoundError,
+            ValueError,
+            OSError,
+        ):
             package_version = "unknown"
         ep_strings.append(f"{ep.name}:{ep.value}:{package_version}")
     return hashlib.sha256("|".join(ep_strings).encode()).hexdigest()
@@ -126,7 +132,7 @@ class Settings:
 
                 # Use distribution() to find package location WITHOUT importing it
                 # This avoids slow package imports (e.g., ndevio takes 2.5s to import)
-                dist = distribution(package_name)
+                dist = importlib_metadata.distribution(package_name)
                 yaml_path = None
 
                 # For regular installs, dist.files contains the file list
@@ -194,6 +200,7 @@ class Settings:
                         if name not in all_settings[group_name]:
                             all_settings[group_name][name] = data
             except (
+                importlib_metadata.PackageNotFoundError,
                 ModuleNotFoundError,
                 FileNotFoundError,
                 ValueError,
