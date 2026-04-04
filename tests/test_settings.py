@@ -220,6 +220,94 @@ class TestCachingBehavior:
         # User's custom value should be preserved
         assert settings2.Group_A.setting_int == 777
 
+    def test_package_upgrade_backfills_new_settings(
+        self, test_settings_file, tmp_path, monkeypatch
+    ):
+        """Upgrading a contributing package should invalidate the cache.
+
+        This covers the common case where a package keeps the same
+        ``ndev_settings.manifest`` entry point but ships a new setting in its
+        YAML schema in a later version.
+        """
+        import yaml
+
+        external_file = tmp_path / "external.yaml"
+        version_state = {"value": "1.0.0"}
+
+        external_v1 = {
+            "External_Group": {
+                "existing_setting": {
+                    "value": 10,
+                    "default": 10,
+                }
+            }
+        }
+        external_v2 = {
+            "External_Group": {
+                "existing_setting": {
+                    "value": 10,
+                    "default": 10,
+                },
+                "new_setting": {
+                    "value": 42,
+                    "default": 42,
+                },
+            }
+        }
+        external_file.write_text(yaml.dump(external_v1))
+
+        class MockEntryPoint:
+            def __init__(self):
+                self.name = "mock_external"
+                self.value = "mock_package:settings.yaml"
+
+        class MockPackagePath:
+            def __init__(self, actual_path):
+                self._path = actual_path
+                self.name = "settings.yaml"
+
+            def __str__(self):
+                return "mock_package/settings.yaml"
+
+        class MockDistribution:
+            def __init__(self):
+                self.version = version_state["value"]
+                self.files = [MockPackagePath(external_file)]
+
+            def locate_file(self, file):
+                return file._path
+
+        from importlib.metadata import distribution as orig_distribution
+
+        def mock_entry_points(group=None):
+            if group == "ndev_settings.manifest":
+                return [MockEntryPoint()]
+            return []
+
+        def mock_distribution(name):
+            if name == "mock_package":
+                return MockDistribution()
+            return orig_distribution(name)
+
+        monkeypatch.setattr(
+            "ndev_settings._settings.entry_points", mock_entry_points
+        )
+        monkeypatch.setattr(
+            "importlib.metadata.distribution", mock_distribution
+        )
+
+        settings1 = Settings(str(test_settings_file))
+        settings1.External_Group.existing_setting = 777
+        settings1.save()
+
+        external_file.write_text(yaml.dump(external_v2))
+        version_state["value"] = "2.0.0"
+
+        settings2 = Settings(str(test_settings_file))
+
+        assert settings2.External_Group.existing_setting == 777
+        assert settings2.External_Group.new_setting == 42
+
     def test_clear_settings_handles_missing_file(self):
         """Test that clear_settings doesn't crash if file doesn't exist."""
         from ndev_settings import _settings
